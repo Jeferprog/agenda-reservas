@@ -1,70 +1,139 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Agenda Virtual — Cresol Cooperar (Firestore)</title>
-<style>
-  /* Visual similar ao seu projeto */
-  body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#f5f7fa;color:#222}
-  header{background:linear-gradient(90deg,#ff7a00,#c0c0c0);color:#fff;padding:16px;text-align:center;font-size:20px;font-weight:700}
-  .container{display:flex;gap:18px;padding:18px}
-  .sidebar{width:300px;background:#fff;padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-  .calendar{flex:1;background:#fff;padding:14px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-  .section-title{font-weight:700;margin-bottom:8px}
-  .small-input{width:90%;padding:8px;border-radius:8px;border:1px solid #ddd;box-sizing:border-box}
-  .row{display:flex;gap:8px;align-items:center}
-  .btn{padding:8px 10px;border-radius:8px;border:0;background:#ff7a00;color:#fff;cursor:pointer;font-weight:700}
-  .btn-muted{background:#eee;color:#333}
-  .calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
-  .weekday{text-align:center;font-size:12px;color:#6b7280}
-  .day{background:#fff;border:1px solid #eef2f6;border-radius:8px;padding:8px;min-height:92px;cursor:pointer;position:relative}
-  .day-num{font-weight:700}
-  .muted{color:#6b7280;font-size:13px}
-  .multi-reservations{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .reservation-label{padding:6px 8px;border-radius:8px;color:#fff;font-weight:700;font-size:12px}
-  /* modal */
-  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:60}
-  .modal{background:#fff;padding:16px;border-radius:10px;width:420px;max-width:94%}
-  label{display:block;margin-top:8px;font-weight:600;font-size:14px}
-  select,input[type="time"],input[type="text"]{width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;box-sizing:border-box}
-  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
-  .icon-btn{background:transparent;border:0;cursor:pointer;padding:6px;border-radius:6px}
-  .list-row{display:flex;justify-content:space-between;align-items:center;padding:6px;border-radius:6px;border:1px solid #f0f0f0;margin-bottom:8px}
-  .color-box{width:28px;height:22px;border-radius:6px;border:1px solid rgba(0,0,0,0.06)}
-  .status { font-size:13px; color:#666; margin-top:8px; }
-  footer.note { position: fixed; bottom: 0; width: 100%; text-align: center; padding:6px 0; background:transparent; font-size:12px; color:#666; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agenda Virtual — Cresol Cooperar</title>
+
+  <style>
+    body{
+      font-family:Arial,Helvetica,sans-serif;margin:0;
+      background:#f5f7fa;color:#222;
+    }
+    header{
+      background:linear-gradient(90deg,#ff7a00,#c0c0c0);
+      color:#fff;padding:16px;text-align:center;
+      font-size:20px;font-weight:700;
+    }
+    .container{display:flex;gap:18px;padding:18px}
+    .sidebar{
+      width:300px;background:#fff;padding:14px;border-radius:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.06)
+    }
+    .calendar{
+      flex:1;background:#fff;padding:14px;border-radius:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.06)
+    }
+    .section-title{font-weight:700;margin-bottom:8px}
+    .small-input{
+      width:90%;padding:8px;border-radius:8px;border:1px solid #ddd;
+      box-sizing:border-box
+    }
+    .btn{
+      padding:8px 10px;border-radius:8px;border:0;
+      background:#ff7a00;color:#fff;cursor:pointer;font-weight:700
+    }
+    .btn-muted{background:#eee;color:#333}
+    .calendar-header{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:8px
+    }
+    .calendar-grid{
+      display:grid;grid-template-columns:repeat(7,1fr);gap:8px
+    }
+    .weekday{text-align:center;font-size:12px;color:#6b7280}
+    .day{
+      background:#fff;border:1px solid #eef2f6;border-radius:8px;
+      padding:8px;min-height:92px;cursor:pointer;position:relative
+    }
+    .day-num{font-weight:700}
+    .muted{color:#6b7280;font-size:13px}
+    .multi-reservations{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+    .reservation-label{
+      padding:6px 8px;border-radius:8px;color:#fff;font-weight:700;
+      font-size:12px
+    }
+
+    /* MODAL */
+    .modal-bg{
+      position:fixed;inset:0;background:rgba(0,0,0,0.5);
+      display:none;align-items:center;justify-content:center;z-index:60
+    }
+    .modal{
+      background:#fff;padding:16px;border-radius:10px;width:420px;
+      max-width:94%
+    }
+    label{display:block;margin-top:8px;font-weight:600;font-size:14px}
+    select,input[type="time"],input[type="text"]{
+      width:100%;padding:8px;border-radius:8px;border:1px solid #ddd;
+      box-sizing:border-box
+    }
+    .modal-actions{
+      display:flex;gap:8px;justify-content:flex-end;margin-top:12px
+    }
+    .icon-btn{
+      background:transparent;border:0;cursor:pointer;padding:6px;
+      border-radius:6px
+    }
+
+    .list-row{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:6px;border-radius:6px;border:1px solid #f0f0f0;margin-bottom:8px
+    }
+    .color-box{
+      width:28px;height:22px;border-radius:6px;
+      border:1px solid rgba(0,0,0,0.06)
+    }
+  </style>
 </head>
+
 <body>
-<header>Agenda Virtual — Cresol Cooperar (Firestore)</header>
+<header>Agenda Virtual — Cresol Cooperar</header>
 
 <div class="container">
+  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div>
-      <div class="section-title">Cadastrar usuário</div>
-      <div class="muted">Digite o nome do usuário e selecione uma cor para representá-lo</div>
-      <input id="newUserName" class="small-input" placeholder="Nome do usuário" />
-      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-        <input id="newUserColor" type="color" style="width:64px;height:36px;border-radius:8px;border:1px solid #ddd;padding:0" value="#ff7a00" />
-        <button id="addUserBtn" class="btn">Adicionar</button>
-        <button id="manageUsersBtn" class="btn-muted" style="padding:6px 8px">Gerenciar</button>
-      </div>
+    <div id="userInfo" style="margin-bottom:14px;font-weight:bold;color:#444"></div>
 
-      <hr style="margin:12px 0">
+    <button id="loginBtn" class="btn" style="width:100%;margin-bottom:16px">
+      Entrar com Google
+    </button>
 
-      <div class="section-title">Cadastrar Agência</div>
-      <input id="newPlaceName" class="small-input" placeholder="Nome da Agência" />
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="addPlaceBtn" class="btn">Cadastrar</button>
-        <button id="managePlacesBtn" class="btn-muted" style="padding:6px 8px">Gerenciar</button>
-      </div>
-      <div style="margin-top:12px" class="muted">Observação: Usuários e Agências cadastrados aparecem ao selecionar um dia.</div>
-      <div id="connectionStatus" class="status"></div>
+    <button id="logoutBtn" class="btn-muted" style="width:100%;margin-bottom:20px;display:none">
+      Sair
+    </button>
+
+    <div class="section-title">Cadastrar usuário</div>
+    <input id="newUserName" class="small-input" placeholder="Nome do usuário" />
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+      <input id="newUserColor" type="color"
+        style="width:64px;height:36px;border-radius:8px;border:1px solid #ddd;padding:0"
+        value="#ff7a00" />
+      <button id="addUserBtn" class="btn">Adicionar</button>
+    </div>
+
+    <button id="manageUsersBtn" class="btn-muted" style="margin-top:8px;width:100%">
+      Gerenciar usuários
+    </button>
+
+    <hr style="margin:16px 0">
+
+    <div class="section-title">Cadastrar Agência</div>
+    <input id="newPlaceName" class="small-input" placeholder="Nome da Agência" />
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="addPlaceBtn" class="btn">Cadastrar</button>
+    </div>
+
+    <button id="managePlacesBtn" class="btn-muted" style="margin-top:8px;width:100%">
+      Gerenciar Agências
+    </button>
+
+    <div style="margin-top:12px;font-size:12px;color:#666;">
+      Usuários e Agências só aparecem ao clicar em um dia.
     </div>
   </aside>
 
+  <!-- CALENDÁRIO -->
   <main class="calendar">
     <div class="calendar-header">
       <div style="display:flex;gap:8px;align-items:center">
@@ -72,16 +141,15 @@
         <div id="monthLabel" style="font-weight:800"></div>
         <button id="nextMonth" class="btn">▶</button>
       </div>
-      <div class="muted">Clique em um dia para reservar ou editar reservas</div>
     </div>
 
     <div class="calendar-grid" id="calendarGrid"></div>
   </main>
 </div>
 
-<!-- Reservation modal -->
+<!-- MODAL RESERVA -->
 <div class="modal-bg" id="modalBg">
-  <div class="modal" role="dialog" aria-modal="true">
+  <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div style="font-weight:900" id="modalDateTitle">Reservar</div>
       <button id="closeModal" class="icon-btn">✕</button>
@@ -117,7 +185,7 @@
   </div>
 </div>
 
-<!-- Manage modals -->
+<!-- MODAL GERENCIAR USUÁRIOS -->
 <div class="modal-bg" id="manageUsersModal" style="display:none">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -128,6 +196,7 @@
   </div>
 </div>
 
+<!-- MODAL GERENCIAR LUGARES -->
 <div class="modal-bg" id="managePlacesModal" style="display:none">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -138,72 +207,393 @@
   </div>
 </div>
 
-<footer class="note">Desenvolvido por: Jeferson Deimling</footer>
-
-<!-- Firebase compat SDKs (works with plain <script> usage) -->
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<!-- PARTE 2 DO SCRIPT SERÁ ENVIADA A SEGUIR -->
+<!-- PARTE 2: SCRIPTS (colar aqui) -->
+<!-- Firebase compat SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <script>
-/* --------- FIREBASE CONFIG (colecido do que você enviou) --------- */
+/* ================== FIREBASE CONFIG (sua config já fornecida) ================== */
 const firebaseConfig = {
-  apiKey: "AIzaSyD-PZZ9NPKedeicRxaPPdCLSI10xEYwHKU",
-  authDomain: "agenda-compartilhada-d4280.firebaseapp.com",
-  projectId: "agenda-compartilhada-d4280",
-  storageBucket: "agenda-compartilhada-d4280.firebasestorage.app",
-  messagingSenderId: "299191431650",
-  appId: "1:299191431650:web:95d3d2dd5c9f952e0549bb",
-  measurementId: "G-Q8MXG3F41C"
+  apiKey: "AIzaSyBgYWUTMu6BgTh8kZC1zOb6v910lk_fCK8",
+  authDomain: "minhaagenda-5fc2d.firebaseapp.com",
+  projectId: "minhaagenda-5fc2d",
+  storageBucket: "minhaagenda-5fc2d.firebasestorage.app",
+  messagingSenderId: "608476496",
+  appId: "1:608476496:web:3727dfa26ce356303f2055"
 };
-/* ----------------------------------------------------------------- */
+/* ============================================================================ */
 
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* Local caches */
-let users = {};       // {name:{color}}
-let places = {};      // {name:{}}
-let reservations = {}; // {dateKey:[{id,user,place,period}]}
-
-/* UI state */
+/* ---------- Estado local ---------- */
+let currentUser = null;
+let reservationsByDate = {}; // { dateKey: [ reservationDocs ] }
+let placesCache = {};        // { placeId: { ... } }
+let usersCache = {};         // { uid: {name,color} }
 let viewDate = new Date();
 let selectedDayKey = null;
 let editingResId = null;
 
-/* DOM refs */
-const connectionStatus = document.getElementById('connectionStatus');
+/* ---------- DOM refs ---------- */
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const userInfo = document.getElementById('userInfo');
+
+const newUserName = document.getElementById('newUserName');
+const newUserColor = document.getElementById('newUserColor');
+const addUserBtn = document.getElementById('addUserBtn');
+const manageUsersBtn = document.getElementById('manageUsersBtn');
+
+const newPlaceName = document.getElementById('newPlaceName');
+const addPlaceBtn = document.getElementById('addPlaceBtn');
+const managePlacesBtn = document.getElementById('managePlacesBtn');
+
 const modalBg = document.getElementById('modalBg');
+const modalDateTitle = document.getElementById('modalDateTitle');
 const modalUserSelect = document.getElementById('modalUserSelect');
 const modalPlaceSelect = document.getElementById('modalPlaceSelect');
 const existingBox = document.getElementById('existingReservationsBox');
-const manageUsersModal = document.getElementById('manageUsersModal');
-const managePlacesModal = document.getElementById('managePlacesModal');
 
-/* Helpers */
-function formatKey(d){ return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
-function uid(){ return `${Date.now()}-${Math.random().toString(36).slice(2,7)}`; }
+const saveResBtn = document.getElementById('saveResBtn');
+const deleteResBtn = document.getElementById('deleteResBtn');
+const cancelResBtn = document.getElementById('cancelResBtn');
+const closeModalBtn = document.getElementById('closeModal');
 
-/* Real-time listeners */
-db.collection('users').onSnapshot(snap => {
-  users = {};
-  snap.forEach(doc => users[doc.id] = doc.data());
-  connectionStatus.textContent = 'Usuários carregados';
-}, err => connectionStatus.textContent = 'Erro usuários: ' + err.message);
+/* profile */
+const profileColor = document.getElementById('profileColor');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
 
-db.collection('places').onSnapshot(snap => {
-  places = {};
-  snap.forEach(doc => places[doc.id] = doc.data());
-  connectionStatus.textContent = 'Lugares carregados';
-}, err => connectionStatus.textContent = 'Erro lugares: ' + err.message);
+/* calendar nav */
+document.getElementById('prevMonth').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderCalendar(); });
+document.getElementById('nextMonth').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()+1); renderCalendar(); });
 
-db.collection('reservations').onSnapshot(snap => {
-  reservations = {};
-  snap.forEach(doc => reservations[doc.id] = doc.data().items || []);
-  connectionStatus.textContent = 'Reservas carregadas';
+/* ---------- Auth ---------- */
+loginBtn.addEventListener('click', ()=>{
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(e=> alert('Erro login: '+e.message));
+});
+logoutBtn.addEventListener('click', ()=> auth.signOut());
+
+auth.onAuthStateChanged(async user => {
+  currentUser = user;
+  if(user){
+    userInfo.textContent = `Logado: ${user.displayName || user.email}`;
+    loginBtn.style.display = 'none';
+    logoutBtn.style.display = 'block';
+    // ensure user profile exists
+    const docRef = db.collection('users').doc(user.uid);
+    const snap = await docRef.get();
+    if(!snap.exists){
+      await docRef.set({ name: user.displayName || user.email, color: profileColor.value || '#ff7a00' });
+    } else {
+      const data = snap.data();
+      if(data.color) profileColor.value = data.color;
+    }
+  } else {
+    userInfo.textContent = 'Offline';
+    loginBtn.style.display = 'block';
+    logoutBtn.style.display = 'none';
+  }
+});
+
+/* ---------- Listeners: places, users, reservations ---------- */
+// places
+db.collection('places').onSnapshot(snap=>{
+  placesCache = {};
+  snap.forEach(d => placesCache[d.id] = d.data());
+}, err => console.warn('places listen', err));
+
+// users
+db.collection('users').onSnapshot(snap=>{
+  usersCache = {};
+  snap.forEach(d => usersCache[d.id] = d.data());
+}, err => console.warn('users listen', err));
+
+// reservations (per-reservation documents)
+db.collection('reservations').onSnapshot(snap=>{
+  // regroup
+  const grouped = {};
+  snap.forEach(d=>{
+    const r = { id: d.id, ...d.data() };
+    const key = r.dateKey;
+    if(!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  });
+  reservationsByDate = grouped;
   renderCalendar();
-}, err => connectionStatus.textContent = 'Erro reservas: ' + err.message);
+}, err => console.warn('reservations listen', err));
 
-/* Render calendar */
+/* ---------- CRUD: users (profile) ---------- */
+// add user (legacy UI - creates an additional user doc keyed by name; you can also rely on auth-created docs)
+addUserBtn.addEventListener('click', async ()=>{
+  const name = (newUserName.value||'').trim();
+  const color = newUserColor.value || '#ff7a00';
+  if(!name) return alert('Digite o nome do usuário');
+  // create doc with id = name (backwards compat)
+  try {
+    const docRef = db.collection('users_byname').doc(name);
+    const snap = await docRef.get();
+    if(snap.exists) return alert('Usuário já existe');
+    await docRef.set({ name, color });
+    newUserName.value = '';
+    alert('Usuário cadastrado (users_byname)');
+  } catch(e){ alert('Erro: '+e.message); }
+});
+
+// manage users (both auth users and users_byname)
+manageUsersBtn.addEventListener('click', async ()=>{
+  const box = document.getElementById('manageUsersList');
+  box.innerHTML = '';
+  // list auth users from users collection
+  const snap = await db.collection('users').get();
+  snap.forEach(d=>{
+    const name = d.id;
+    const data = d.data();
+    const row = document.createElement('div'); row.className='list-row';
+    const left = document.createElement('div'); left.textContent = (data.name || name);
+    const right = document.createElement('div');
+    const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
+    delBtn.onclick = async ()=> {
+      if(!confirm('Excluir esse perfil de usuário?')) return;
+      try {
+        // remove reservations by this uid
+        const resSnap = await db.collection('reservations').where('userUid','==',d.id).get();
+        const batch = db.batch();
+        resSnap.forEach(rd => batch.delete(db.collection('reservations').doc(rd.id)));
+        await batch.commit();
+        // delete user profile
+        await db.collection('users').doc(d.id).delete();
+        alert('Usuário removido');
+      } catch(e){ alert('Erro: '+e.message); }
+    };
+    right.appendChild(delBtn);
+    row.appendChild(left); row.appendChild(right);
+    box.appendChild(row);
+  });
+  document.getElementById('manageUsersModal').style.display='flex';
+});
+document.getElementById('closeManageUsers').addEventListener('click', ()=> document.getElementById('manageUsersModal').style.display='none');
+
+/* Save profile color */
+saveProfileBtn.addEventListener('click', async ()=>{
+  if(!currentUser) return alert('Faça login para editar perfil');
+  try {
+    await db.collection('users').doc(currentUser.uid).set({ name: currentUser.displayName || currentUser.email, color: profileColor.value }, { merge:true });
+    alert('Perfil salvo');
+  } catch(e){ alert('Erro: '+e.message); }
+});
+
+/* ---------- CRUD: places ---------- */
+addPlaceBtn.addEventListener('click', async ()=>{
+  const name = (newPlaceName.value||'').trim();
+  if(!name) return alert('Digite o nome do local');
+  if(Object.keys(placesCache).includes(name)) return alert('Agência já cadastrada');
+  try {
+    await db.collection('places').doc(name).set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    newPlaceName.value = '';
+    alert('Agência cadastrada');
+  } catch(e){ alert('Erro: '+e.message); }
+});
+
+managePlacesBtn.addEventListener('click', ()=> openManagePlaces());
+document.getElementById('closeManagePlaces').addEventListener('click', ()=> document.getElementById('managePlacesModal').style.display='none');
+
+function openManagePlaces(){
+  const box = document.getElementById('managePlacesList');
+  box.innerHTML = '';
+  Object.keys(placesCache).forEach(name=>{
+    const row = document.createElement('div'); row.className='list-row';
+    const left = document.createElement('div'); left.textContent = name; left.style.fontWeight='700';
+    const right = document.createElement('div');
+    const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
+    delBtn.onclick = async ()=> {
+      if(!confirm(`Excluir Agência '${name}' ? Isso removerá também das reservas.`)) return;
+      try {
+        // remove reservations referencing this place
+        const snap = await db.collection('reservations').where('place','==',name).get();
+        const batch = db.batch();
+        snap.forEach(rdoc => batch.delete(db.collection('reservations').doc(rdoc.id)));
+        await batch.commit();
+        await db.collection('places').doc(name).delete();
+        alert('Local excluído');
+      } catch(e){ alert('Erro: '+e.message); }
+    };
+    right.appendChild(delBtn);
+    row.appendChild(left); row.appendChild(right);
+    box.appendChild(row);
+  });
+  document.getElementById('managePlacesModal').style.display='flex';
+}
+
+/* ---------- Reservation modal logic (per-reservation docs) ---------- */
+function formatKey(d){ return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
+
+function openReservationModal(dateObj){
+  if(!dateObj) return;
+  selectedDayKey = formatKey(dateObj);
+  editingResId = null;
+  document.getElementById('modalDateTitle').textContent = dateObj.toLocaleDateString();
+  modalBg.style.display = 'flex';
+
+  // populate user select (auth users)
+  modalUserSelect.innerHTML = '';
+  // prefer listing auth users from users collection
+  Object.keys(usersCache).forEach(uid=>{
+    const o = document.createElement('option'); o.value = uid; o.textContent = usersCache[uid].name || uid;
+    modalUserSelect.appendChild(o);
+  });
+
+  // populate places
+  modalPlaceSelect.innerHTML = '';
+  Object.keys(placesCache).forEach(p=>{
+    const o = document.createElement('option'); o.value = p; o.textContent = p;
+    modalPlaceSelect.appendChild(o);
+  });
+
+  // existing reservations for the day
+  existingBox.innerHTML = '<div style="font-weight:700;margin-top:12px">Reservas neste dia</div>';
+  const dayList = reservationsByDate[selectedDayKey] || [];
+  if(dayList.length === 0){
+    const none = document.createElement('div'); none.className='muted'; none.style.marginTop='6px'; none.textContent='Nenhuma reserva';
+    existingBox.appendChild(none);
+    deleteResBtn.style.display='none';
+  } else {
+    dayList.forEach(r=>{
+      const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.marginTop='6px';
+      const userLabel = (usersCache[r.userUid] && usersCache[r.userUid].name) || r.userName || 'Usuário';
+      const info = document.createElement('div'); info.textContent = `${r.period} • ${r.place} • ${userLabel}`;
+      const actions = document.createElement('div');
+      const editBtn = document.createElement('button'); editBtn.className='icon-btn'; editBtn.textContent='✎';
+      editBtn.onclick = (e)=> { e.stopPropagation(); openEditReservation(r.id); };
+      const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
+      delBtn.onclick = async (e)=> {
+        e.stopPropagation();
+        if(!currentUser) return alert('Faça login');
+        if(r.userUid !== currentUser.uid) return alert('Somente o dono pode excluir');
+        if(!confirm('Excluir esta reserva?')) return;
+        try {
+          await db.collection('reservations').doc(r.id).delete();
+          alert('Reserva excluída');
+          modalBg.style.display='none';
+        } catch(err){ alert('Erro: '+err.message); }
+      };
+
+      if(currentUser && r.userUid === currentUser.uid){
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+      } else {
+        const lock = document.createElement('span'); lock.textContent='🔒';
+        actions.appendChild(lock);
+      }
+      actions.style.display='flex'; actions.style.gap='6px';
+      row.appendChild(info); row.appendChild(actions);
+      existingBox.appendChild(row);
+    });
+    deleteResBtn.style.display='none';
+  }
+
+  // reset form fields
+  document.querySelectorAll('input[name="period"]').forEach(i=>i.checked=false);
+  document.getElementById('timeBox').style.display='none';
+  document.getElementById('timeStart').value=''; document.getElementById('timeEnd').value='';
+}
+
+function openEditReservation(resId){
+  editingResId = resId;
+  // load doc
+  db.collection('reservations').doc(resId).get().then(snap=>{
+    if(!snap.exists) return alert('Reserva não encontrada');
+    const r = snap.data();
+    if(!currentUser || r.userUid !== currentUser.uid) return alert('Você não pode editar esta reserva');
+    // set place
+    modalPlaceSelect.value = r.place;
+    // set period
+    if(r.period === 'dia' || r.period === 'manha' || r.period === 'tarde'){
+      const v = r.period === 'manhã' ? 'manha' : r.period;
+      const el = document.querySelector(`input[name="period"][value="${v}"]`);
+      if(el) el.checked = true;
+      document.getElementById('timeBox').style.display = 'none';
+    } else {
+      const el = document.querySelector('input[name="period"][value="horario"]');
+      if(el) el.checked = true;
+      document.getElementById('timeBox').style.display = 'block';
+      const [s,e] = r.period.split('-');
+      document.getElementById('timeStart').value = s || '';
+      document.getElementById('timeEnd').value = e || '';
+    }
+    deleteResBtn.style.display = 'inline-block';
+  }).catch(e => alert('Erro: '+e.message));
+}
+
+/* show/hide time inputs */
+document.querySelectorAll('input[name="period"]').forEach(r=>{
+  r.addEventListener('change', ()=> document.getElementById('timeBox').style.display = (r.value === 'horario' ? 'block' : 'none'));
+});
+
+/* Save reservation (create or update) */
+saveResBtn.addEventListener('click', async ()=>{
+  if(!currentUser) return alert('Faça login para salvar reservas');
+  const place = modalPlaceSelect.value;
+  const periodRadio = document.querySelector('input[name="period"]:checked');
+  if(!place) return alert('Selecione um local');
+  if(!periodRadio) return alert('Selecione um período');
+
+  let period = periodRadio.value;
+  if(period === 'horario'){
+    const s = document.getElementById('timeStart').value;
+    const e = document.getElementById('timeEnd').value;
+    if(!s || !e || s >= e) return alert('Intervalo inválido');
+    period = `${s}-${e}`;
+  }
+
+  try {
+    if(editingResId){
+      const snap = await db.collection('reservations').doc(editingResId).get();
+      if(!snap.exists) return alert('Reserva não encontrada');
+      const data = snap.data();
+      if(data.userUid !== currentUser.uid) return alert('Você não pode editar esta reserva');
+      await db.collection('reservations').doc(editingResId).update({ place, period, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    } else {
+      const payload = {
+        userUid: currentUser.uid,
+        userName: currentUser.displayName || currentUser.email,
+        dateKey: selectedDayKey,
+        place,
+        period,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await db.collection('reservations').add(payload);
+    }
+    alert('Reserva salva');
+    modalBg.style.display='none';
+  } catch(e){ alert('Erro ao salvar reserva: '+e.message); }
+});
+
+/* delete current editing reservation (button) */
+deleteResBtn.addEventListener('click', async ()=>{
+  if(!editingResId) return;
+  if(!currentUser) return alert('Faça login');
+  try {
+    const snap = await db.collection('reservations').doc(editingResId).get();
+    if(!snap.exists) return alert('Reserva não encontrada');
+    const data = snap.data();
+    if(data.userUid !== currentUser.uid) return alert('Você não pode excluir');
+    await db.collection('reservations').doc(editingResId).delete();
+    alert('Reserva excluída');
+    modalBg.style.display='none';
+  } catch(e){ alert('Erro ao excluir: '+e.message); }
+});
+
+/* modal close handlers */
+cancelResBtn.addEventListener('click', ()=> modalBg.style.display='none');
+closeModalBtn.addEventListener('click', ()=> modalBg.style.display='none');
+
+/* ---------- Calendar rendering ---------- */
 function renderCalendar(){
   const grid = document.getElementById('calendarGrid');
   grid.innerHTML = '';
@@ -216,7 +606,6 @@ function renderCalendar(){
 
   const y = viewDate.getFullYear(), m = viewDate.getMonth();
   document.getElementById('monthLabel').textContent = viewDate.toLocaleString('pt-BR',{month:'long', year:'numeric'});
-
   const first = new Date(y,m,1).getDay();
   const total = new Date(y,m+1,0).getDate();
 
@@ -231,11 +620,13 @@ function renderCalendar(){
     top.appendChild(dn);
     dayDiv.appendChild(top);
 
-    if(reservations[key] && reservations[key].length){
+    const list = reservationsByDate[key] || [];
+    if(list.length){
       const wrap = document.createElement('div'); wrap.className='multi-reservations';
-      reservations[key].forEach(r=>{
+      list.forEach(r=>{
         const lbl = document.createElement('div'); lbl.className='reservation-label';
-        const color = (users[r.user] && users[r.user].color) ? users[r.user].color : '#777';
+        const u = usersCache[r.userUid] || {};
+        const color = u.color || '#777';
         lbl.style.background = color;
         lbl.textContent = (r.period === 'dia' ? 'Dia todo' : r.period) + (r.place ? ' • ' + r.place : '');
         wrap.appendChild(lbl);
@@ -251,286 +642,12 @@ function renderCalendar(){
   }
 }
 
-/* Month nav */
-document.getElementById('prevMonth').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()-1); renderCalendar(); });
-document.getElementById('nextMonth').addEventListener('click', ()=>{ viewDate.setMonth(viewDate.getMonth()+1); renderCalendar(); });
-
-/* Create user */
-document.getElementById('addUserBtn').addEventListener('click', async ()=>{
-  const name = (document.getElementById('newUserName').value||'').trim();
-  const color = document.getElementById('newUserColor').value || '#ff7a00';
-  if(!name) return alert('Digite o nome do usuário');
-  if(users[name]) return alert('Usuário já existe');
-  try {
-    await db.collection('users').doc(name).set({ color });
-    document.getElementById('newUserName').value = '';
-    alert('Usuário cadastrado');
-  } catch(e){ alert('Erro: ' + e.message); }
-});
-
-/* Create place */
-document.getElementById('addPlaceBtn').addEventListener('click', async ()=>{
-  const name = (document.getElementById('newPlaceName').value||'').trim();
-  if(!name) return alert('Digite o nome do local');
-  if(places[name]) return alert('Agência já cadastrada');
-  try {
-    await db.collection('places').doc(name).set({});
-    document.getElementById('newPlaceName').value = '';
-    alert('Agência cadastrada');
-  } catch(e){ alert('Erro: '+e.message); }
-});
-
-/* Manage modals */
-document.getElementById('manageUsersBtn').addEventListener('click', ()=> openManageUsers());
-document.getElementById('closeManageUsers').addEventListener('click', ()=> manageUsersModal.style.display='none');
-document.getElementById('managePlacesBtn').addEventListener('click', ()=> openManagePlaces());
-document.getElementById('closeManagePlaces').addEventListener('click', ()=> managePlacesModal.style.display='none');
-
-function openManageUsers(){
-  const box = document.getElementById('manageUsersList');
-  box.innerHTML = '';
-  Object.keys(users).forEach(name=>{
-    const row = document.createElement('div'); row.className='list-row';
-    const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
-    const colorBox = document.createElement('div'); colorBox.className='color-box'; colorBox.style.background = users[name].color;
-    const nm = document.createElement('div'); nm.textContent = name; nm.style.fontWeight='700';
-    left.appendChild(colorBox); left.appendChild(nm);
-    const right = document.createElement('div');
-    const editBtn = document.createElement('button'); editBtn.className='icon-btn'; editBtn.textContent='✎';
-    editBtn.onclick = async ()=> {
-      const nn = prompt('Novo nome do usuário', name);
-      if(!nn) return;
-      const cc = prompt('Cor (hex)', users[name].color) || users[name].color;
-      const newName = nn.trim();
-      try {
-        await db.collection('users').doc(newName).set({ color: cc });
-        // update reservations where user == name
-        const snap = await db.collection('reservations').get();
-        for(const d of snap.docs){
-          const items = d.data().items || [];
-          const changed = items.map(it => it.user === name ? {...it, user: newName} : it);
-          if(JSON.stringify(changed) !== JSON.stringify(items)){
-            await db.collection('reservations').doc(d.id).set({ items: changed });
-          }
-        }
-        await db.collection('users').doc(name).delete();
-        alert('Usuário renomeado');
-      } catch(e){ alert('Erro: '+e.message); }
-    };
-    const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
-    delBtn.onclick = async ()=> {
-      if(!confirm(`Excluir usuário '${name}' ? Isso removerá também das reservas.`)) return;
-      try {
-        const snap = await db.collection('reservations').get();
-        for(const d of snap.docs){
-          const items = d.data().items || [];
-          const filtered = items.filter(r => r.user !== name);
-          if(filtered.length !== items.length){
-            if(filtered.length === 0) {
-              await db.collection('reservations').doc(d.id).delete();
-            } else {
-              await db.collection('reservations').doc(d.id).set({ items: filtered });
-            }
-          }
-        }
-        await db.collection('users').doc(name).delete();
-        alert('Usuário excluído');
-      } catch(e){ alert('Erro: '+e.message); }
-    };
-    right.appendChild(editBtn); right.appendChild(delBtn);
-    row.appendChild(left); row.appendChild(right);
-    box.appendChild(row);
-  });
-  manageUsersModal.style.display = 'flex';
-}
-
-function openManagePlaces(){
-  const box = document.getElementById('managePlacesList');
-  box.innerHTML = '';
-  Object.keys(places).forEach(name=>{
-    const row = document.createElement('div'); row.className='list-row';
-    const left = document.createElement('div'); left.textContent = name; left.style.fontWeight='700';
-    const right = document.createElement('div');
-    const editBtn = document.createElement('button'); editBtn.className='icon-btn'; editBtn.textContent='✎';
-    editBtn.onclick = async ()=> {
-      const nn = prompt('Novo nome do local', name);
-      if(!nn) return;
-      const newName = nn.trim();
-      try {
-        await db.collection('places').doc(newName).set({});
-        const snap = await db.collection('reservations').get();
-        for(const d of snap.docs){
-          const items = d.data().items || [];
-          const changed = items.map(it => it.place === name ? {...it, place: newName} : it);
-          if(JSON.stringify(changed) !== JSON.stringify(items)){
-            await db.collection('reservations').doc(d.id).set({ items: changed });
-          }
-        }
-        await db.collection('places').doc(name).delete();
-        alert('Local renomeado');
-      } catch(e){ alert('Erro: '+e.message); }
-    };
-    const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
-    delBtn.onclick = async ()=> {
-      if(!confirm(`Excluir Agência '${name}' ? Isso removerá também das reservas.`)) return;
-      try {
-        const snap = await db.collection('reservations').get();
-        for(const d of snap.docs){
-          const items = d.data().items || [];
-          const filtered = items.filter(r => r.place !== name);
-          if(filtered.length !== items.length){
-            if(filtered.length === 0) {
-              await db.collection('reservations').doc(d.id).delete();
-            } else {
-              await db.collection('reservations').doc(d.id).set({ items: filtered });
-            }
-          }
-        }
-        await db.collection('places').doc(name).delete();
-        alert('Local excluído');
-      } catch(e){ alert('Erro: '+e.message); }
-    };
-    right.appendChild(editBtn); right.appendChild(delBtn);
-    row.appendChild(left); row.appendChild(right);
-    box.appendChild(row);
-  });
-  managePlacesModal.style.display = 'flex';
-}
-
-/* Reservation modal logic */
-function openReservationModal(dateObj){
-  selectedDayKey = formatKey(dateObj);
-  editingResId = null;
-  document.getElementById('modalDateTitle').textContent = dateObj.toLocaleDateString();
-  modalBg.style.display = 'flex';
-
-  // populate selects FROM CACHE
-  modalUserSelect.innerHTML = '';
-  Object.keys(users).forEach(u=>{
-    const o = document.createElement('option'); o.value = u; o.textContent = u; modalUserSelect.appendChild(o);
-  });
-  modalPlaceSelect.innerHTML = '';
-  Object.keys(places).forEach(p=>{
-    const o = document.createElement('option'); o.value = p; o.textContent = p; modalPlaceSelect.appendChild(o);
-  });
-
-  // existing reservations
-  existingBox.innerHTML = '<div style="font-weight:700;margin-top:12px">Reservas neste dia</div>';
-  const dayList = reservations[selectedDayKey] || [];
-  if(dayList.length === 0){
-    const none = document.createElement('div'); none.className='muted'; none.style.marginTop='6px'; none.textContent='Nenhuma reserva';
-    existingBox.appendChild(none);
-    document.getElementById('deleteResBtn').style.display = 'none';
-  } else {
-    dayList.forEach(r=>{
-      const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.marginTop='6px';
-      const info = document.createElement('div'); info.textContent = `${r.period} • ${r.place} • ${r.user}`;
-      const actions = document.createElement('div');
-      const editBtn = document.createElement('button'); editBtn.className='icon-btn'; editBtn.textContent='✎';
-      editBtn.onclick = (e)=>{ e.stopPropagation(); openEditReservation(r.id); };
-      const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
-      delBtn.onclick = async (e)=>{ e.stopPropagation(); if(!confirm('Excluir esta reserva?')) return; try { const filtered = (reservations[selectedDayKey]||[]).filter(x=>x.id!==r.id); if(filtered.length===0) await db.collection('reservations').doc(selectedDayKey).delete(); else await db.collection('reservations').doc(selectedDayKey).set({ items: filtered }); alert('Reserva excluída'); } catch(err){ alert('Erro: '+err.message); } finally { modalBg.style.display='none'; } };
-      actions.appendChild(editBtn); actions.appendChild(delBtn);
-      row.appendChild(info); row.appendChild(actions);
-      existingBox.appendChild(row);
-    });
-    document.getElementById('deleteResBtn').style.display = 'none';
-  }
-
-  // reset form
-  document.querySelectorAll('input[name="period"]').forEach(i=>i.checked=false);
-  document.getElementById('timeBox').style.display = 'none';
-  document.getElementById('timeStart').value=''; document.getElementById('timeEnd').value='';
-}
-
-function openEditReservation(resId){
-  const dayList = reservations[selectedDayKey] || [];
-  const r = dayList.find(x=>x.id === resId);
-  if(!r) return;
-  editingResId = resId;
-  modalUserSelect.value = r.user;
-  modalPlaceSelect.value = r.place;
-  if(r.period === 'dia' || r.period === 'manha' || r.period === 'tarde'){
-    const val = (r.period === 'manhã' ? 'manha' : r.period);
-    const el = document.querySelector(`input[name="period"][value="${val}"]`);
-    if(el) el.checked = true;
-    document.getElementById('timeBox').style.display = 'none';
-  } else {
-    const el = document.querySelector('input[name="period"][value="horario"]');
-    if(el) el.checked = true;
-    document.getElementById('timeBox').style.display = 'block';
-    const [s,e] = r.period.split('-');
-    document.getElementById('timeStart').value = s;
-    document.getElementById('timeEnd').value = e;
-  }
-  document.getElementById('deleteResBtn').style.display = 'inline-block';
-}
-
-/* show/hide time inputs */
-document.querySelectorAll('input[name="period"]').forEach(r=>{
-  r.addEventListener('change', ()=> document.getElementById('timeBox').style.display = (r.value === 'horario' ? 'block' : 'none'));
-});
-
-/* save reservation */
-document.getElementById('saveResBtn').addEventListener('click', async ()=>{
-  const user = modalUserSelect.value;
-  const place = modalPlaceSelect.value;
-  const periodRadio = document.querySelector('input[name="period"]:checked');
-  if(!user) return alert('Selecione um usuário');
-  if(!place) return alert('Selecione um local');
-  if(!periodRadio) return alert('Selecione um período');
-
-  let period = periodRadio.value;
-  if(period === 'horario'){
-    const s = document.getElementById('timeStart').value;
-    const e = document.getElementById('timeEnd').value;
-    if(!s || !e || s >= e) return alert('Intervalo inválido');
-    period = `${s}-${e}`;
-  }
-
-  try {
-    const docRef = db.collection('reservations').doc(selectedDayKey);
-    const snapshot = await docRef.get();
-    let items = snapshot.exists ? (snapshot.data().items || []) : [];
-
-    if(editingResId){
-      items = items.map(r => r.id === editingResId ? {...r, user, place, period} : r);
-    } else {
-      items.push({ id: uid(), user, place, period });
-    }
-
-    await docRef.set({ items });
-    alert('Reserva salva');
-    modalBg.style.display = 'none';
-  } catch(e){ alert('Erro ao salvar reserva: ' + e.message); }
-});
-
-/* delete editing reservation (button) */
-document.getElementById('deleteResBtn').addEventListener('click', async ()=>{
-  if(!editingResId) return;
-  try {
-    const docRef = db.collection('reservations').doc(selectedDayKey);
-    const snapshot = await docRef.get();
-    let items = snapshot.exists ? (snapshot.data().items || []) : [];
-    items = items.filter(r => r.id !== editingResId);
-    if(items.length === 0) {
-      await db.collection('reservations').doc(selectedDayKey).delete();
-    } else {
-      await db.collection('reservations').doc(selectedDayKey).set({ items });
-    }
-    alert('Reserva excluída');
-    modalBg.style.display = 'none';
-  } catch(e){ alert('Erro ao excluir: ' + e.message); }
-});
-
-/* close handlers */
-document.getElementById('cancelResBtn').addEventListener('click', ()=> modalBg.style.display='none');
-document.getElementById('closeModal').addEventListener('click', ()=> modalBg.style.display='none');
-document.getElementById('closeManageUsers').addEventListener('click', ()=> manageUsersModal.style.display='none');
-document.getElementById('closeManagePlaces').addEventListener('click', ()=> managePlacesModal.style.display='none');
-
-/* initial render (will be updated by snapshots) */
+/* initial render */
 renderCalendar();
+
+/* helpful: expose some functions for debugging (optional) */
+window._reservationsByDate = () => reservationsByDate;
+window._placesCache = () => placesCache;
+window._usersCache = () => usersCache;
+
 </script>
-</body>
-</html>
