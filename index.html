@@ -290,15 +290,20 @@ auth.onAuthStateChanged(async user => {
     userInfo.textContent = `Logado: ${user.displayName || user.email}`;
     loginBtn.style.display = 'none';
     logoutBtn.style.display = 'block';
-    // ensure user profile exists in users collection (doc id = uid)
-    const docRef = db.collection('users').doc(user.uid);
-    const snap = await docRef.get();
-    if(!snap.exists){
-      await docRef.set({ name: user.displayName || user.email, color: '#ff7a00' });
-    } else {
-      const data = snap.data();
-      if(data.color) { /* nothing necessary here for now */ }
+
+    // OBS: não criar automaticamente o documento em 'users' para evitar perfis indesejados.
+    // Se quiser criar automaticamente, descomente o bloco abaixo.
+    /*
+    try {
+      const docRef = db.collection('users').doc(user.uid);
+      const snap = await docRef.get();
+      if(!snap.exists){
+        await docRef.set({ name: user.displayName || user.email, color: '#ff7a00' });
+      }
+    } catch(e) {
+      console.warn('Erro ao garantir perfil do usuário:', e);
     }
+    */
   } else {
     userInfo.textContent = 'Offline';
     loginBtn.style.display = 'block';
@@ -311,25 +316,30 @@ auth.onAuthStateChanged(async user => {
 db.collection('places').onSnapshot(snap=>{
   placesCache = {};
   snap.forEach(d => placesCache[d.id] = d.data());
+  // re-render to update selects if modal is open
+  renderCalendar();
 }, err => console.warn('places listen', err));
 
 // users (merge both auth-created users and name-based users)
+// keep usersCache updated and re-render calendar when ready
 db.collection('users').onSnapshot(snap=>{
-  // users collection (auth users, doc id = uid)
   const u = {};
   snap.forEach(d => u[d.id] = d.data());
-  // merge with users created by name (if exist)
   db.collection('users_byname').get().then(snap2=>{
     snap2.forEach(d2 => {
-      u[d2.id] = { name: d2.data().name, color: d2.data().color };
+      // only add byname entries that don't conflict with existing uid keys
+      if(!u[d2.id]) u[d2.id] = { name: d2.data().name, color: d2.data().color };
     });
     usersCache = u;
-  }).catch(()=> { usersCache = u; });
+    renderCalendar();
+  }).catch(()=> {
+    usersCache = u;
+    renderCalendar();
+  });
 }, err => console.warn('users listen', err));
 
 // reservations (per-reservation documents)
 db.collection('reservations').onSnapshot(snap=>{
-  // regroup
   const grouped = {};
   snap.forEach(d=>{
     const r = { id: d.id, ...d.data() };
@@ -351,16 +361,15 @@ function requireAuthOrAlert() {
 }
 
 /* ---------- CRUD: users (name-based) ---------- */
-// NOTE: to avoid permission issues we write into 'users' (if you want auth-based users, they exist under uid)
 addUserBtn.addEventListener('click', async ()=>{
   if(!requireAuthOrAlert()) return;
   const name = (newUserName.value||'').trim();
   const color = newUserColor.value || '#ff7a00';
   if(!name) return alert('Digite o nome do usuário');
   try {
-    // save under collection 'users' as doc id = currentUser.uid (compatible with rules)
+    // salva perfil no doc com id = uid do usuário autenticado
     await db.collection('users').doc(currentUser.uid).set({ name, color });
-    // also keep a 'users_byname' for legacy compatibility / search by name
+    // mantém índice por nome (legacy)
     await db.collection('users_byname').doc(name).set({ name, color });
     newUserName.value = '';
     alert('Usuário cadastrado');
@@ -377,11 +386,10 @@ addUserBtn.addEventListener('click', async ()=>{
 manageUsersBtn.addEventListener('click', async ()=>{
   const box = document.getElementById('manageUsersList');
   box.innerHTML = '';
-  // list users from 'users' (may include auth uids and name keys)
   const snap = await db.collection('users').get();
   snap.forEach(d=>{
     const id = d.id;
-    const data = d.data();
+    const data = d.data() || {};
     const row = document.createElement('div'); row.className='list-row';
     const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
     const colorBox = document.createElement('div'); colorBox.className='color-box'; colorBox.style.background = data.color || '#ff7a00';
@@ -394,11 +402,11 @@ manageUsersBtn.addEventListener('click', async ()=>{
       if(!nn) return;
       const cc = prompt('Cor (hex)', data.color || '#ff7a00') || data.color;
       try {
-        await db.collection('users').doc(currentUser && currentUser.uid === id ? id : currentUser.uid).set({ name: nn, color: cc });
-        // update users_byname mapping
+        // atualiza perfil do uid
+        await db.collection('users').doc(id).set({ name: nn, color: cc });
+        // atualiza users_byname
         await db.collection('users_byname').doc(nn).set({ name: nn, color: cc });
         if(id !== nn) {
-          // try to remove old users_byname if exists
           await db.collection('users_byname').doc(id).delete().catch(()=>{});
         }
         alert('Usuário alterado');
@@ -412,17 +420,15 @@ manageUsersBtn.addEventListener('click', async ()=>{
       if(!confirm(`Excluir usuário '${targetName}' ? Isso removerá também das reservas.`)) return;
       if(!requireAuthOrAlert()) return;
       try {
-        // only allow deletion if current user matches the target id (prevent accidental deletes)
+        // só permite exclusão se for o próprio usuário (evita exclusões acidentais)
         if(currentUser.uid !== targetId) {
           return alert('Somente o próprio usuário pode excluir seu perfil aqui.');
         }
-        // delete reservations by this user (by userUid)
         const resByUid = await db.collection('reservations').where('userUid','==',targetId).get();
         const batch = db.batch();
         resByUid.forEach(r => batch.delete(db.collection('reservations').doc(r.id)));
         await batch.commit();
         await db.collection('users').doc(targetId).delete();
-        // also remove users_byname if present
         await db.collection('users_byname').doc(targetName).delete().catch(()=>{});
         alert('Usuário excluído');
         manageUsersBtn.click();
@@ -479,7 +485,6 @@ function openManagePlaces(){
       if(!confirm(`Excluir Agência '${name}' ? Isso removerá também das reservas.`)) return;
       if(!requireAuthOrAlert()) return;
       try {
-        // remove reservations referencing this place
         const snap = await db.collection('reservations').where('place','==',name).get();
         const batch = db.batch();
         snap.forEach(rdoc => batch.delete(db.collection('reservations').doc(rdoc.id)));
@@ -505,28 +510,70 @@ function openManagePlaces(){
 /* ---------- Reservation modal logic (per-reservation docs) ---------- */
 function formatKey(d){ return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 
-function openReservationModal(dateObj){
+async function openReservationModal(dateObj){
   if(!dateObj) return;
   selectedDayKey = formatKey(dateObj);
   editingResId = null;
   document.getElementById('modalDateTitle').textContent = dateObj.toLocaleDateString();
   modalBg.style.display = 'flex';
 
-  // populate user select (merge usersCache)
+  // --- Monta lista de usuários atualizada (busca ao abrir o modal) ---
   modalUserSelect.innerHTML = '';
-  Object.keys(usersCache).forEach(uid=>{
-    const o = document.createElement('option'); o.value = uid; o.textContent = usersCache[uid].name || uid;
-    modalUserSelect.appendChild(o);
-  });
+  try {
+    // busca usuários autenticados (doc id = uid)
+    const snapUsers = await db.collection('users').get();
+    const usersMap = {}; // key = id (uid or name), value = { name, color, source }
+    snapUsers.forEach(d => {
+      const id = d.id;
+      const data = d.data() || {};
+      usersMap[id] = { name: data.name || id, color: data.color || '#ff7a00', source: 'users' };
+    });
 
-  // populate places
+    // busca users_byname (legacy) e só adiciona se não duplicar uid já existente
+    const snapByName = await db.collection('users_byname').get();
+    snapByName.forEach(d => {
+      const id = d.id;
+      const data = d.data() || {};
+      if(!usersMap[id]) {
+        usersMap[id] = { name: data.name || id, color: data.color || '#ff7a00', source: 'users_byname' };
+      }
+    });
+
+    const keys = Object.keys(usersMap).sort((a,b) => {
+      const na = (usersMap[a].name||'').toLowerCase();
+      const nb = (usersMap[b].name||'').toLowerCase();
+      return na < nb ? -1 : (na > nb ? 1 : 0);
+    });
+
+    keys.forEach(k => {
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = usersMap[k].name || k;
+      modalUserSelect.appendChild(o);
+    });
+
+    if(keys.length === 0){
+      const o = document.createElement('option');
+      o.value = '';
+      o.textContent = 'Nenhum usuário cadastrado';
+      modalUserSelect.appendChild(o);
+    }
+  } catch(err){
+    console.error('Erro ao carregar usuários para o modal', err);
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = 'Erro ao carregar usuários';
+    modalUserSelect.appendChild(o);
+  }
+
+  // --- popula places (mantém comportamento atual) ---
   modalPlaceSelect.innerHTML = '';
   Object.keys(placesCache).forEach(p=>{
     const o = document.createElement('option'); o.value = p; o.textContent = p;
     modalPlaceSelect.appendChild(o);
   });
 
-  // existing reservations for the day
+  // existing reservations for the day (mantém comportamento atual)
   existingBox.innerHTML = '<div style="font-weight:700;margin-top:12px">Reservas neste dia</div>';
   const dayList = reservationsByDate[selectedDayKey] || [];
   if(dayList.length === 0){
@@ -582,14 +629,11 @@ function openReservationModal(dateObj){
 
 function openEditReservation(resId){
   editingResId = resId;
-  // load doc
   db.collection('reservations').doc(resId).get().then(snap=>{
     if(!snap.exists) return alert('Reserva não encontrada');
     const r = snap.data();
     if(!currentUser || r.userUid !== currentUser.uid) return alert('Você não pode editar esta reserva');
-    // set place
     modalPlaceSelect.value = r.place;
-    // set period
     if(r.period === 'dia' || r.period === 'manha' || r.period === 'tarde'){
       const v = r.period === 'manhã' ? 'manha' : r.period;
       const el = document.querySelector(`input[name="period"][value="${v}"]`);
@@ -617,8 +661,10 @@ saveResBtn.addEventListener('click', async ()=>{
   if(!requireAuthOrAlert()) return;
   const place = modalPlaceSelect.value;
   const periodRadio = document.querySelector('input[name="period"]:checked');
+  const selectedUser = modalUserSelect.value;
   if(!place) return alert('Selecione um local');
   if(!periodRadio) return alert('Selecione um período');
+  if(!selectedUser) return alert('Selecione um usuário');
 
   let period = periodRadio.value;
   if(period === 'horario'){
@@ -636,6 +682,7 @@ saveResBtn.addEventListener('click', async ()=>{
       if(data.userUid !== currentUser.uid) return alert('Você não pode editar esta reserva');
       await db.collection('reservations').doc(editingResId).update({ place, period, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
     } else {
+      // payload: userUid should be the authenticated user's uid
       const payload = {
         userUid: currentUser.uid,
         userName: currentUser.displayName || currentUser.email,
@@ -700,6 +747,18 @@ function renderCalendar(){
 
   for(let i=0;i<first;i++) grid.appendChild(document.createElement('div'));
 
+  // helper: calcula contraste (retorna '#000' ou '#fff')
+  function textColorForBackground(hex){
+    if(!hex) return '#fff';
+    const h = hex.replace('#','');
+    if(h.length !== 6) return '#fff';
+    const r = parseInt(h.substring(0,2),16);
+    const g = parseInt(h.substring(2,4),16);
+    const b = parseInt(h.substring(4,6),16);
+    const luminance = (0.299*r + 0.587*g + 0.114*b)/255;
+    return luminance > 0.6 ? '#000' : '#fff';
+  }
+
   for(let d=1; d<=total; d++){
     const dateObj = new Date(y,m,d);
     const key = formatKey(dateObj);
@@ -714,10 +773,16 @@ function renderCalendar(){
       const wrap = document.createElement('div'); wrap.className='multi-reservations';
       list.forEach(r=>{
         const lbl = document.createElement('div'); lbl.className='reservation-label';
-        const u = usersCache[r.userUid] || usersCache[r.userName] || {};
+        // procura cor do usuário: primeiro por userUid, depois por userName
+        const u = (r.userUid && usersCache[r.userUid]) || (r.userName && usersCache[r.userName]) || {};
         const color = u.color || '#777';
         lbl.style.background = color;
-        lbl.textContent = (r.period === 'dia' ? 'Dia todo' : r.period) + (r.place ? ' • ' + r.place : '');
+        lbl.style.color = textColorForBackground(color);
+        let periodText = r.period;
+        if(r.period === 'dia') periodText = 'Dia todo';
+        else if(r.period === 'manha') periodText = 'Manhã';
+        else if(r.period === 'tarde') periodText = 'Tarde';
+        lbl.textContent = (periodText) + (r.place ? ' • ' + r.place : '');
         wrap.appendChild(lbl);
       });
       dayDiv.appendChild(wrap);
@@ -736,14 +801,11 @@ renderCalendar();
 
 /* ---------- EXPORTAR MÊS PARA EXCEL (SheetJS) ---------- */
 exportMonthBtn.addEventListener('click', ()=>{
-  // collect reservations for month in viewDate
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const rows = [];
-  // header
   rows.push(["Data","Período","Local","Usuário"]);
   Object.keys(reservationsByDate).forEach(key=>{
-    // key format YYYY-M-D
     const parts = key.split('-').map(x => parseInt(x,10));
     if(parts.length !== 3) return;
     const [y, m, d] = parts;
@@ -761,12 +823,10 @@ exportMonthBtn.addEventListener('click', ()=>{
     return alert('Não há reservas para exportar neste mês.');
   }
 
-  // convert to worksheet & workbook
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Reservas');
 
-  // generate binary and trigger download
   const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   const blob = new Blob([wbout], {type:'application/octet-stream'});
   const fileName = `Agenda_${viewDate.toLocaleString('pt-BR',{month:'long', year:'numeric'})}.xlsx`;
