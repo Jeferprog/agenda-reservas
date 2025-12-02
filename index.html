@@ -341,20 +341,36 @@ db.collection('reservations').onSnapshot(snap=>{
   renderCalendar();
 }, err => console.warn('reservations listen', err));
 
+/* ---------- Helper: require auth ---------- */
+function requireAuthOrAlert() {
+  if(!currentUser) {
+    alert('Faça login para realizar esta ação');
+    return false;
+  }
+  return true;
+}
+
 /* ---------- CRUD: users (name-based) ---------- */
 // NOTE: to avoid permission issues we write into 'users' (if you want auth-based users, they exist under uid)
 addUserBtn.addEventListener('click', async ()=>{
+  if(!requireAuthOrAlert()) return;
   const name = (newUserName.value||'').trim();
   const color = newUserColor.value || '#ff7a00';
   if(!name) return alert('Digite o nome do usuário');
   try {
-    // save under collection 'users' as doc id = name (keeps simple)
-    await db.collection('users').doc(name).set({ name, color });
-    // also keep a 'users_byname' for legacy compatibility
+    // save under collection 'users' as doc id = currentUser.uid (compatible with rules)
+    await db.collection('users').doc(currentUser.uid).set({ name, color });
+    // also keep a 'users_byname' for legacy compatibility / search by name
     await db.collection('users_byname').doc(name).set({ name, color });
     newUserName.value = '';
     alert('Usuário cadastrado');
-  } catch(e){ alert('Erro: '+e.message); }
+  } catch(e){
+    if(e.code === 'permission-denied') {
+      alert('Permissão negada. Verifique suas regras do Firestore e se você está logado.');
+    } else {
+      alert('Erro: '+e.message);
+    }
+  }
 });
 
 // manage users (list both types)
@@ -378,29 +394,45 @@ manageUsersBtn.addEventListener('click', async ()=>{
       if(!nn) return;
       const cc = prompt('Cor (hex)', data.color || '#ff7a00') || data.color;
       try {
-        await db.collection('users').doc(nn).set({ name: nn, color: cc });
-        if(id !== nn) await db.collection('users').doc(id).delete();
+        await db.collection('users').doc(currentUser && currentUser.uid === id ? id : currentUser.uid).set({ name: nn, color: cc });
+        // update users_byname mapping
+        await db.collection('users_byname').doc(nn).set({ name: nn, color: cc });
+        if(id !== nn) {
+          // try to remove old users_byname if exists
+          await db.collection('users_byname').doc(id).delete().catch(()=>{});
+        }
         alert('Usuário alterado');
         manageUsersBtn.click();
       } catch(e){ alert('Erro: '+e.message); }
     };
     const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
     delBtn.onclick = async ()=> {
-      if(!confirm(`Excluir usuário '${data.name||id}' ? Isso removerá também das reservas.`)) return;
+      const targetId = id;
+      const targetName = data.name || id;
+      if(!confirm(`Excluir usuário '${targetName}' ? Isso removerá também das reservas.`)) return;
+      if(!requireAuthOrAlert()) return;
       try {
-        // delete reservations by this user (by userUid or by name)
-        const resByUid = await db.collection('reservations').where('userUid','==',id).get();
-        const resByName = await db.collection('reservations').where('userName','==',data.name||id).get();
+        // only allow deletion if current user matches the target id (prevent accidental deletes)
+        if(currentUser.uid !== targetId) {
+          return alert('Somente o próprio usuário pode excluir seu perfil aqui.');
+        }
+        // delete reservations by this user (by userUid)
+        const resByUid = await db.collection('reservations').where('userUid','==',targetId).get();
         const batch = db.batch();
         resByUid.forEach(r => batch.delete(db.collection('reservations').doc(r.id)));
-        resByName.forEach(r => batch.delete(db.collection('reservations').doc(r.id)));
         await batch.commit();
-        await db.collection('users').doc(id).delete();
+        await db.collection('users').doc(targetId).delete();
         // also remove users_byname if present
-        await db.collection('users_byname').doc(id).delete().catch(()=>{});
+        await db.collection('users_byname').doc(targetName).delete().catch(()=>{});
         alert('Usuário excluído');
         manageUsersBtn.click();
-      } catch(e){ alert('Erro: '+e.message); }
+      } catch(e){
+        if(e.code === 'permission-denied') {
+          alert('Permissão negada ao excluir usuário. Verifique regras do Firestore.');
+        } else {
+          alert('Erro: ' + e.message);
+        }
+      }
     };
     right.appendChild(editBtn); right.appendChild(delBtn);
     row.appendChild(left); row.appendChild(right);
@@ -412,14 +444,24 @@ document.getElementById('closeManageUsers').addEventListener('click', ()=> docum
 
 /* ---------- CRUD: places ---------- */
 addPlaceBtn.addEventListener('click', async ()=>{
+  if(!requireAuthOrAlert()) return;
   const name = (newPlaceName.value||'').trim();
   if(!name) return alert('Digite o nome do local');
   if(Object.keys(placesCache).includes(name)) return alert('Agência já cadastrada');
   try {
-    await db.collection('places').doc(name).set({ createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    await db.collection('places').doc(name).set({
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: currentUser.uid
+    });
     newPlaceName.value = '';
     alert('Agência cadastrada');
-  } catch(e){ alert('Erro: '+e.message); }
+  } catch(e){
+    if(e.code === 'permission-denied') {
+      alert('Permissão negada ao cadastrar local. Verifique regras do Firestore.');
+    } else {
+      alert('Erro: '+e.message);
+    }
+  }
 });
 
 managePlacesBtn.addEventListener('click', ()=> openManagePlaces());
@@ -435,6 +477,7 @@ function openManagePlaces(){
     const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑';
     delBtn.onclick = async ()=> {
       if(!confirm(`Excluir Agência '${name}' ? Isso removerá também das reservas.`)) return;
+      if(!requireAuthOrAlert()) return;
       try {
         // remove reservations referencing this place
         const snap = await db.collection('reservations').where('place','==',name).get();
@@ -443,7 +486,14 @@ function openManagePlaces(){
         await batch.commit();
         await db.collection('places').doc(name).delete();
         alert('Local excluído');
-      } catch(e){ alert('Erro: '+e.message); }
+        openManagePlaces();
+      } catch(e){
+        if(e.code === 'permission-denied') {
+          alert('Permissão negada ao excluir local. Verifique regras do Firestore.');
+        } else {
+          alert('Erro: ' + e.message);
+        }
+      }
     };
     right.appendChild(delBtn);
     row.appendChild(left); row.appendChild(right);
@@ -501,7 +551,13 @@ function openReservationModal(dateObj){
           await db.collection('reservations').doc(r.id).delete();
           alert('Reserva excluída');
           modalBg.style.display='none';
-        } catch(err){ alert('Erro: '+err.message); }
+        } catch(err){ 
+          if(err.code === 'permission-denied') {
+            alert('Permissão negada ao excluir reserva.');
+          } else {
+            alert('Erro: '+err.message);
+          }
+        }
       };
 
       if(currentUser && r.userUid === currentUser.uid){
@@ -558,7 +614,7 @@ document.querySelectorAll('input[name="period"]').forEach(r=>{
 
 /* Save reservation (create or update) */
 saveResBtn.addEventListener('click', async ()=>{
-  if(!currentUser) return alert('Faça login para salvar reservas');
+  if(!requireAuthOrAlert()) return;
   const place = modalPlaceSelect.value;
   const periodRadio = document.querySelector('input[name="period"]:checked');
   if(!place) return alert('Selecione um local');
@@ -592,7 +648,13 @@ saveResBtn.addEventListener('click', async ()=>{
     }
     alert('Reserva salva');
     modalBg.style.display='none';
-  } catch(e){ alert('Erro ao salvar reserva: '+e.message); }
+  } catch(e){
+    if(e.code === 'permission-denied') {
+      alert('Permissão negada ao salvar reserva. Verifique se você está logado e as regras do Firestore.');
+    } else {
+      alert('Erro ao salvar reserva: ' + e.message);
+    }
+  }
 });
 
 /* delete current editing reservation (button) */
@@ -607,7 +669,13 @@ deleteResBtn.addEventListener('click', async ()=>{
     await db.collection('reservations').doc(editingResId).delete();
     alert('Reserva excluída');
     modalBg.style.display='none';
-  } catch(e){ alert('Erro ao excluir: '+e.message); }
+  } catch(e){
+    if(e.code === 'permission-denied') {
+      alert('Permissão negada ao excluir reserva. Verifique regras do Firestore.');
+    } else {
+      alert('Erro ao excluir: '+e.message);
+    }
+  }
 });
 
 /* modal close handlers */
