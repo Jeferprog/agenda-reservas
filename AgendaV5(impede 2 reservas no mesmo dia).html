@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="pt-BR">
+ <head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6600">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda de Visitas</title>
+  <style>
+    /* ====== ESTILOS GERAIS ====== */
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: linear-gradient(135deg, #ff8c42 0%, #ff7028 100%);
+      margin:0; 
+      padding:0;
+      min-height: 100vh;
+    }
+    
+    header { 
+      background:#ff6600; 
+      color:#fff; 
+      padding:20px 30px;
+      font-size:28px;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .container { 
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 20px;
+    }
+    
+    .hidden { display:none !important; }
+
+    button {
+      padding: 10px 20px;
+      background: #ff6600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #fff;
+      font-weight: bold;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      background: #ff5500;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #ff6600;
+    }
+
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      margin-bottom: 30px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #333;
+      border-bottom: 3px solid #ff6600;
+      padding-bottom: 10px;
+    }
+
+    .card h3 {
+      margin-top: 25px;
+      margin-bottom: 15px;
+      color: #555;
+      font-size: 18px;
+    }
+
+    .small { 
+      font-size: 13px; 
+      color: #666;
+      margin-top: 10px;
+    }
+
+    .grid-layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    .reservation-item {
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      border-left: 4px solid #ff6600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: transform 0.2s;
+    }
+
+    .reservation-item:hover {
+      transform: translateX(5px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+    .reservation-info {
+      flex: 1;
+    }
+
+    .reservation-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .place-row, .user-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #ff6600;
+    }
+
+    .place-row:hover, .user-row:hover {
+      background: #e9ecef;
+    }
+
+    .calendar-container {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .calendar-day {
+      padding: 10px;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      min-height: 80px;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .calendar-day:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-color: #ff6600;
+    }
+
+    .form-section {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    .admin-section {
+      background: #fff3cd;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    /* ====== MODAL ====== */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal {
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal h2 {
+      margin-top: 0;
+      color: #333;
+    }
+
+    /* ====== RESPONSIVO ====== */
+    @media (max-width: 968px) {
+      .grid-layout {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+      }
+
+      .header-buttons {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+ </head>
+ <body>
+  <header>
+   <div>
+    Agenda de Visitas CRESOL COOPERAR
+   </div>
+   <div class="header-buttons"><button id="btnLogout" class="hidden">Sair</button> <button id="btnOpenAddUser" class="hidden">Cadastrar Usuário</button>
+   </div>
+  </header>
+  <div class="container"><!-- ====== LOGIN ====== -->
+   <div id="authCard" class="card" style="max-width:450px; margin:100px auto;">
+    <h2 style="text-align:center; font-size:24px;">🔐 Login</h2>
+    <p style="text-align:center; color:#666; margin-bottom:25px;">Faça login para acessar o sistema</p><label>Usuário:</label> <input id="usernameLogin" placeholder="Digite seu usuário"> <label>Senha:</label> <input id="senhaLogin" placeholder="Digite sua senha" type="password"> <button id="btnLogin" style="width:100%; margin-top:20px; padding:14px; font-size:16px;">Entrar</button>
+    <p id="loginError" class="small" style="color:#dc3545; display:none; text-align:center; margin-top:15px; font-weight:600;"></p>
+   </div><!-- ====== CALENDÁRIO ====== -->
+   <div id="reservasCard" class="card hidden">
+    <h2>📅 Calendário de Visitas</h2><p>Selecione o dia para cadastrar nova visita</p>
+    <div class="grid-layout"><!-- COLUNA ESQUERDA: CALENDÁRIO -->
+     <div>
+      <div class="calendar-container">
+       <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;"><button id="prevMonth" style="padding:8px 16px;">◀ Anterior</button>
+        <h3 id="monthLabel" style="flex:1; text-align:center; margin:0; font-size:20px; color:#ff6600;"></h3><button id="nextMonth" style="padding:8px 16px;">Próximo ▶</button>
+       </div>
+       <div id="calendar"></div>
+      </div>
+      <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:10px;">
+       <h4 style="margin-top:0;">Legenda:</h4>
+       <p style="font-size:13px; color:#666;">Cada usuário possui uma cor única no calendário</p>
+       <p style="font-size:12px; color:#999; margin-top:8px;">👑 Administradores podem fazer múltiplas reservas no mesmo local</p>
+      </div>
+     </div><!-- COLUNA DIREITA: FORMULÁRIO E VISITAS DO DIA -->
+     <div>
+      <div class="form-section">
+       <h3 style="margin-top:0;">➕ Nova Visita</h3>
+       <p id="selectedDateLabel" style="padding:10px; background:#fff; border-radius:6px; font-weight:600; color:#ff6600;"><em>Selecione um dia no calendário</em></p><label>Local:</label> <select id="selectPlace"></select> <label>Período:</label> <select id="periodoReserva"> <option value="dia">Dia todo</option> <option value="manha">Manhã</option> <option value="tarde">Tarde</option> <option value="custom">Especificar Horário</option> </select>
+       <div id="horarioCustom" style="display:none;"><label>Início:</label> <input type="time" id="horaInicio"> <label>Fim:</label> <input type="time" id="horaFim">
+       </div><button id="btnCriarReserva" style="width:100%; margin-top:15px; padding:12px;">Criar Visita</button>
+      </div>
+      <div style="margin-top:20px;">
+       <h3>📋 Visitas do Dia Selecionado</h3>
+       <div id="listaReservas" style="max-height:400px; overflow-y:auto;"></div>
+      </div>
+     </div>
+    </div>
+   </div><!-- ====== ADMINISTRAÇÃO ====== -->
+   <div id="adminCard" class="card hidden">
+    <h2>⚙️ Administração</h2>
+    <div class="grid-layout"><!-- COLUNA ESQUERDA: LOCAIS -->
+     <div>
+      <div class="admin-section">
+       <h3 style="margin-top:0;">📍 Gerenciar Locais</h3>
+       <div style="display:flex; gap:10px; margin-bottom:20px;"><input id="novoPlace" placeholder="Nome do novo local" style="flex:1;"> <button id="btnAddPlace" style="white-space:nowrap;">+ Adicionar</button>
+       </div>
+       <div id="listaPlaces"></div>
+      </div>
+     </div><!-- COLUNA DIREITA: USUÁRIOS -->
+     <div>
+      <div class="admin-section">
+       <h3 style="margin-top:0;">👥 Gerenciar Usuários</h3>
+       <div id="adminUserList"></div>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div><!-- ====== MODAL NOVO USUÁRIO ====== -->
+  <div class="modal-bg" id="modalAddUserBg">
+   <div class="modal">
+    <h2>Novo Usuário</h2><input id="addUserName" placeholder="Usuário"> <input id="addUserPassword" placeholder="Senha" type="password"> <select id="addUserRole"> <option value="user">Usuário</option> <option value="admin">Admin</option> </select> <button id="btnSalvarUser">Salvar</button> <button id="btnFecharUser" style="background:#ccc; margin-top:10px;">Fechar</button>
+   </div>
+  </div><!-- ======================== JAVASCRIPT ======================== -->
+  <script type="module">
+
+/* ============================================================
+   🔥  IMPORT FIREBASE
+============================================================ */
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+
+import {
+  getFirestore, doc, getDoc, setDoc, addDoc,
+  deleteDoc, updateDoc, collection,
+  query, where, getDocs, limit
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBgYWUTMu6BgTh8kZC1zOb6v910lk_fCK8",
+  authDomain: "minhaagenda-5fc2d.firebaseapp.com",
+  projectId: "minhaagenda-5fc2d",
+  storageBucket: "minhaagenda-5fc2d.firebasestorage.app",
+  messagingSenderId: "608476496",
+  appId: "1:608476496:web:3727dfa26ce356303f2055"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+
+/* ============================================================
+   🔧 DOM ELEMENTOS
+============================================================ */
+const authCard = document.getElementById("authCard");
+const reservasCard = document.getElementById("reservasCard");
+const adminCard = document.getElementById("adminCard");
+
+const usernameLogin = document.getElementById("usernameLogin");
+const senhaLogin = document.getElementById("senhaLogin");
+const btnLogin = document.getElementById("btnLogin");
+const btnLogout = document.getElementById("btnLogout");
+
+const loginError = document.getElementById("loginError");
+
+const btnOpenAddUser = document.getElementById("btnOpenAddUser");
+const modalAddUserBg = document.getElementById("modalAddUserBg");
+const btnSalvarUser = document.getElementById("btnSalvarUser");
+const btnFecharUser = document.getElementById("btnFecharUser");
+
+const selectPlace = document.getElementById("selectPlace");
+const listaPlaces = document.getElementById("listaPlaces");
+const novoPlace = document.getElementById("novoPlace");
+const btnAddPlace = document.getElementById("btnAddPlace");
+
+const calendarEl = document.getElementById("calendar");
+const monthLabel = document.getElementById("monthLabel");
+const selectedDateLabel = document.getElementById("selectedDateLabel");
+
+const periodoReserva = document.getElementById("periodoReserva");
+const horarioCustom = document.getElementById("horarioCustom");
+const horaInicio = document.getElementById("horaInicio");
+const horaFim = document.getElementById("horaFim");
+
+const btnCriarReserva = document.getElementById("btnCriarReserva");
+const listaReservas = document.getElementById("listaReservas");
+
+const adminUserList = document.getElementById("adminUserList");
+
+
+/* ============================================================
+   🎨 CORES POR USUÁRIO
+============================================================ */
+const userColors = [
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788',
+  '#E63946', '#A8DADC', '#F4A261', '#2A9D8F', '#E76F51',
+  '#264653', '#E9C46A', '#F77F00', '#06D6A0', '#118AB2'
+];
+
+// Função para gerar cor consistente baseada no username
+function getUserColor(username) {
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % userColors.length;
+  return userColors[index];
+}
+
+// Função para buscar cor do usuário (custom ou padrão)
+async function getUserColorFromDB(username) {
+  const q = query(collection(db,'users'), where('username','==',username), limit(1));
+  const snap = await getDocs(q);
+  
+  if (!snap.empty) {
+    const userData = snap.docs[0].data();
+    return userData.customColor || getUserColor(username);
+  }
+  
+  return getUserColor(username);
+}
+
+
+/* ============================================================
+   📌 FUNÇÕES UTILITÁRIAS
+============================================================ */
+function showAlert(msg) { alert(msg); }
+
+function showLoginError(msg){
+  loginError.textContent = msg;
+  loginError.style.display = "block";
+}
+
+
+/* ============================================================
+   🔐 LOGIN
+============================================================ */
+btnLogin.onclick = login;
+
+async function login(){
+  try {
+    loginError.style.display="none";
+
+    const user = usernameLogin.value.trim();
+    const pass = senhaLogin.value.trim();
+
+    if (!user || !pass)
+      return showLoginError("Preencha usuário e senha.");
+
+    const q = query(collection(db,'users'), where('username','==',user), limit(1));
+    const snap = await getDocs(q);
+
+    if (snap.empty)
+      return showLoginError("Usuário não encontrado.");
+
+    const docu = snap.docs[0];
+    const data = docu.data();
+
+    if (data.password !== pass)
+      return showLoginError("Senha incorreta.");
+
+    sessionStorage.setItem("loggedUser", JSON.stringify({
+      id: docu.id,
+      username: data.username,
+      role: data.role
+    }));
+
+    loadUIAfterLogin();
+
+  } catch(err){
+    console.error(err);
+    showLoginError("Erro no login.");
+  }
+}
+
+
+/* ============================================================
+   🎛️  TELA APÓS LOGIN
+============================================================ */
+btnLogout.onclick = () => {
+  sessionStorage.removeItem("loggedUser");
+  location.reload();
+};
+
+function loadUIAfterLogin(){
+  const user = JSON.parse(sessionStorage.getItem("loggedUser"));
+  if (!user) return;
+
+  authCard.classList.add("hidden");
+  reservasCard.classList.remove("hidden");
+  btnLogout.classList.remove("hidden");
+
+  if (user.role === "admin"){
+    adminCard.classList.remove("hidden");
+    btnOpenAddUser.classList.remove("hidden");
+    loadUsersAdmin();
+  }
+
+  loadPlaces();
+  renderCalendar();
+}
+
+
+/* ============================================================
+   👥 ADMINISTRAR USUÁRIOS
+============================================================ */
+btnOpenAddUser.onclick = () => modalAddUserBg.style.display = "flex";
+btnFecharUser.onclick = () => modalAddUserBg.style.display = "none";
+
+btnSalvarUser.onclick = async () => {
+  const name = document.getElementById("addUserName").value.trim();
+  const pass = document.getElementById("addUserPassword").value.trim();
+  const role = document.getElementById("addUserRole").value;
+
+  if (!name || !pass) return showAlert("Preencha todos os campos");
+
+  const q = query(collection(db,'users'), where('username','==',name));
+  if (!(await getDocs(q)).empty)
+    return showAlert("Usuário já existe");
+
+  await addDoc(collection(db,'users'), { username:name, password:pass, role });
+
+  modalAddUserBg.style.display="none";
+  loadUsersAdmin();
+};
+
+async function loadUsersAdmin(){
+  adminUserList.innerHTML = "";
+
+  const snap = await getDocs(collection(db,'users'));
+
+  snap.forEach(docu => {
+    const u = docu.data();
+
+    const row = document.createElement("div");
+    row.className="user-row";
+
+    const roleIcon = u.role === "admin" ? "👑" : "👤";
+    const roleBadge = u.role === "admin" ? 
+      '<span style="background:#ff6600; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">ADMIN</span>' : 
+      '<span style="background:#6c757d; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;">USER</span>';
+    
+    const userColor = u.customColor || getUserColor(u.username);
+    const colorBadge = `<span style="display:inline-block; width:20px; height:20px; background:${userColor}; border-radius:4px; border:2px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.2); cursor:pointer;" class="user-color-badge" title="Clique para mudar a cor"></span>`;
+
+    row.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:24px;">${roleIcon}</span>
+        ${colorBadge}
+        <div>
+          <div style="font-weight:600; color:#333;">${u.username}</div>
+          <div style="margin-top:4px;">${roleBadge}</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="edit-user btn-small btn-secondary">✏️ Editar</button>
+        <button class="del-user btn-small btn-danger">🗑️ Excluir</button>
+      </div>
+    `;
+
+    adminUserList.appendChild(row);
+
+    row.querySelector(".user-color-badge").onclick = () => changeUserColor(docu.id, u);
+    row.querySelector(".edit-user").onclick = () => editUser(docu.id, u);
+    row.querySelector(".del-user").onclick = () => deleteUser(docu.id);
+  });
+}
+
+async function changeUserColor(id, u){
+  const currentColor = u.customColor || getUserColor(u.username);
+  
+  // Criar modal inline para seleção de cor
+  const colorModal = document.createElement('div');
+  colorModal.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+  `;
+  
+  const colorContent = document.createElement('div');
+  colorContent.style.cssText = `
+    background: #fff;
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  `;
+  
+  colorContent.innerHTML = `
+    <h3 style="margin-top:0; color:#333;">🎨 Escolher cor para ${u.username}</h3>
+    <p style="color:#666; font-size:14px;">Selecione uma cor da paleta ou use o seletor personalizado:</p>
+    <div id="colorPalette" style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:20px 0;"></div>
+    <div style="margin-top:20px;">
+      <label style="display:block; margin-bottom:8px; font-weight:600;">Cor personalizada:</label>
+      <input type="color" id="customColorPicker" value="${currentColor}" style="width:100%; height:50px; border:2px solid #e0e0e0; border-radius:8px; cursor:pointer;">
+    </div>
+    <div style="display:flex; gap:10px; margin-top:25px;">
+      <button id="btnSaveColor" style="flex:1; padding:12px;">Salvar</button>
+      <button id="btnCancelColor" style="flex:1; padding:12px; background:#6c757d;">Cancelar</button>
+      <button id="btnResetColor" style="flex:1; padding:12px; background:#dc3545;">Resetar</button>
+    </div>
+  `;
+  
+  colorModal.appendChild(colorContent);
+  document.body.appendChild(colorModal);
+  
+  // Preencher paleta de cores
+  const palette = document.getElementById('colorPalette');
+  userColors.forEach(color => {
+    const colorBox = document.createElement('div');
+    colorBox.style.cssText = `
+      width: 100%;
+      aspect-ratio: 1;
+      background: ${color};
+      border-radius: 8px;
+      cursor: pointer;
+      border: 3px solid ${color === currentColor ? '#333' : 'transparent'};
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    `;
+    colorBox.onmouseover = () => {
+      if (color !== currentColor) colorBox.style.transform = 'scale(1.1)';
+    };
+    colorBox.onmouseout = () => {
+      colorBox.style.transform = 'scale(1)';
+    };
+    colorBox.onclick = () => {
+      document.getElementById('customColorPicker').value = color;
+      // Atualizar borda selecionada
+      palette.querySelectorAll('div').forEach(box => {
+        box.style.border = '3px solid transparent';
+      });
+      colorBox.style.border = '3px solid #333';
+    };
+    palette.appendChild(colorBox);
+  });
+  
+  const customPicker = document.getElementById('customColorPicker');
+  customPicker.oninput = () => {
+    // Remover seleção da paleta
+    palette.querySelectorAll('div').forEach(box => {
+      box.style.border = '3px solid transparent';
+    });
+  };
+  
+  // Botão Salvar
+  document.getElementById('btnSaveColor').onclick = async () => {
+    const newColor = customPicker.value;
+    await updateDoc(doc(db,'users',id), { customColor: newColor });
+    document.body.removeChild(colorModal);
+    loadUsersAdmin();
+    renderCalendar();
+    if (selectedDate) loadReservas(selectedDate);
+  };
+  
+  // Botão Cancelar
+  document.getElementById('btnCancelColor').onclick = () => {
+    document.body.removeChild(colorModal);
+  };
+  
+  // Botão Resetar
+  document.getElementById('btnResetColor').onclick = async () => {
+    if (confirm('Resetar para a cor padrão?')) {
+      await updateDoc(doc(db,'users',id), { customColor: null });
+      document.body.removeChild(colorModal);
+      loadUsersAdmin();
+      renderCalendar();
+      if (selectedDate) loadReservas(selectedDate);
+    }
+  };
+  
+  // Fechar ao clicar fora
+  colorModal.onclick = (e) => {
+    if (e.target === colorModal) {
+      document.body.removeChild(colorModal);
+    }
+  };
+}
+
+async function editUser(id, u){
+  const newUser = prompt("Novo username:", u.username);
+  if (!newUser) return;
+
+  const newPass = prompt("Nova senha (deixe em branco p/ manter):", "");
+  const newRole = prompt("Role (admin/user):", u.role) || u.role;
+
+  const updates = { username:newUser, role:newRole };
+  if (newPass && newPass.trim() !== "") updates.password = newPass.trim();
+
+  await updateDoc(doc(db,'users',id), updates);
+  loadUsersAdmin();
+}
+
+async function deleteUser(id){
+  if (!confirm("Excluir usuário?")) return;
+  await deleteDoc(doc(db,'users',id));
+  loadUsersAdmin();
+}
+
+
+/* ============================================================
+   📍 LOCAIS
+============================================================ */
+btnAddPlace.onclick = async () => {
+  if (!novoPlace.value.trim()) return;
+  await addDoc(collection(db,'places'), { name: novoPlace.value });
+  novoPlace.value="";
+  loadPlaces();
+};
+
+async function loadPlaces(){
+  selectPlace.innerHTML = "";
+  listaPlaces.innerHTML = "";
+
+  const snap = await getDocs(collection(db,'places'));
+
+  snap.forEach(docu => {
+    const p = docu.data();
+
+    const opt = document.createElement("option");
+    opt.value = docu.id;
+    opt.textContent = p.name;
+    selectPlace.appendChild(opt);
+
+    const row = document.createElement("div");
+    row.className="place-row";
+    row.innerHTML = `
+      <div style="font-weight:600; color:#333;">📍 ${p.name}</div>
+      <div style="display:flex; gap:8px;">
+        <button class="editPlace btn-small btn-secondary">✏️ Editar</button>
+        <button class="delPlace btn-small btn-danger">🗑️ Excluir</button>
+      </div>
+    `;
+    listaPlaces.appendChild(row);
+
+    row.querySelector(".editPlace").onclick = () => editPlace(docu.id, p);
+    row.querySelector(".delPlace").onclick = () => deletePlace(docu.id);
+  });
+}
+
+async function editPlace(id, place){
+  const novo = prompt("Novo nome:", place.name);
+  if (!novo) return;
+  await updateDoc(doc(db,'places',id), { name: novo });
+  loadPlaces();
+}
+
+async function deletePlace(id){
+  if (!confirm("Excluir local?")) return;
+  await deleteDoc(doc(db,'places',id));
+  loadPlaces();
+}
+
+
+/* ============================================================
+   📅 CALENDÁRIO
+============================================================ */
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth();
+let selectedDate = null;
+
+document.getElementById("prevMonth").onclick = () => {
+  currentMonth--;
+  if (currentMonth < 0){ currentMonth=11; currentYear--; }
+  renderCalendar();
+};
+
+document.getElementById("nextMonth").onclick = () => {
+  currentMonth++;
+  if (currentMonth > 11){ currentMonth=0; currentYear++; }
+  renderCalendar();
+};
+
+periodoReserva.onchange = () => {
+  horarioCustom.style.display = periodoReserva.value === "custom" ? "block" : "none";
+};
+
+async function getReservationsForMonth(year, month){
+  const snap = await getDocs(collection(db,'reservations'));
+  const map = {};
+
+  snap.forEach(docu => {
+    const r = docu.data();
+    if (!r.date) return;
+
+    const [y,m,d] = r.date.split('-').map(n=>parseInt(n));
+
+    if (y === year && m-1 === month){
+      if (!map[d]) map[d] = [];
+      map[d].push({ ...r, id:docu.id });
+    }
+  });
+
+  return map;
+}
+
+async function renderCalendar(){
+  calendarEl.innerHTML = "";
+  const year = currentYear, month = currentMonth;
+
+  monthLabel.textContent = new Date(year,month)
+    .toLocaleString("pt-BR", { month:"long" }) + " " + year;
+
+  const reservationsMap = await getReservationsForMonth(year, month);
+  
+  // Buscar todos os usuários com cores customizadas
+  const usersSnap = await getDocs(collection(db,'users'));
+  const userColorsMap = {};
+  usersSnap.forEach(doc => {
+    const u = doc.data();
+    userColorsMap[u.username] = u.customColor || getUserColor(u.username);
+  });
+  
+  const firstDay = new Date(year,month,1).getDay();
+  const totalDays = new Date(year,month+1,0).getDate();
+
+  const grid = document.createElement("div");
+  grid.style.display="grid";
+  grid.style.gridTemplateColumns="repeat(7,1fr)";
+  grid.style.gap="6px";
+
+  const weekdays = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
+  weekdays.forEach(d=>{
+    const hd = document.createElement("div");
+    hd.textContent=d;
+    hd.style.fontWeight="bold";
+    hd.style.textAlign="center";
+    grid.appendChild(hd);
+  });
+
+  for (let i=0;i<firstDay;i++)
+    grid.appendChild(document.createElement("div"));
+
+  for (let d=1; d<=totalDays; d++){
+    const cell = document.createElement("div");
+    cell.className="calendar-day";
+
+    const dayOfWeek = new Date(year, month, d).getDay();
+
+    if (dayOfWeek === 0) cell.style.background = "#ffcccc";     // Domingo
+    else if (dayOfWeek === 6) cell.style.background = "#fff2a8"; // Sábado
+
+    const dayRes = reservationsMap[d] || [];
+
+cell.innerHTML = `
+  <div style="font-weight:bold">${d}</div>
+  <div style="font-size:10px; margin-top:6px; display:flex; flex-direction:column; gap:4px;">
+    ${ dayRes.map(r => {
+      const userColor = userColorsMap[r.username] || getUserColor(r.username);
+      return `
+      <div style="
+        border:1px solid ${userColor};
+        border-radius:4px;
+        padding:2px 4px;
+        background:${userColor};
+        color:#fff;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      ">
+        <strong>${r.username}</strong><br>
+        <span style="font-size:9px;">${r.placeName}</span>
+      </div>
+    `}).join('') }
+  </div>
+`;
+    cell.onclick = () => selectCalendarDate(year, month, d);
+
+    grid.appendChild(cell);
+  }
+
+  calendarEl.appendChild(grid);
+}
+
+function selectCalendarDate(y,m,d){
+  selectedDate = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  selectedDateLabel.innerHTML = `<strong>Data selecionada:</strong> ${selectedDate}`;
+  loadReservas(selectedDate);
+}
+
+
+/* ======================================
+   📌 RESERVAS
+==================================================== */
+async function loadReservas(date){
+  listaReservas.innerHTML = "";
+
+  if (!date){
+    listaReservas.innerHTML = "<em>Selecione um dia no calendário</em>";
+    return;
+  }
+
+  const snap = await getDocs(collection(db,'reservations'));
+  const reservas = snap.docs
+    .map(d=>({ ...d.data(), id:d.id }))
+    .filter(r=>r.date === date);
+
+  if (reservas.length === 0){
+    listaReservas.innerHTML = "<em>Nenhuma reserva para esse dia</em>";
+    return;
+  }
+
+  const user = JSON.parse(sessionStorage.getItem("loggedUser"));
+  
+  // Buscar cores customizadas dos usuários
+  const usersSnap = await getDocs(collection(db,'users'));
+  const userColorsMap = {};
+  usersSnap.forEach(doc => {
+    const u = doc.data();
+    userColorsMap[u.username] = u.customColor || getUserColor(u.username);
+  });
+
+  reservas.forEach(r => {
+    const div = document.createElement("div");
+    div.className="reservation-item";
+    
+    const userColor = userColorsMap[r.username] || getUserColor(r.username);
+    div.style.borderLeftColor = userColor;
+
+    const periodTxt =
+      r.period === "dia" ? "Dia todo" :
+      r.period === "manha" ? "Manhã" :
+      r.period === "tarde" ? "Tarde" :
+      `${r.start} - ${r.end}`;
+
+    const info = document.createElement("div");
+    info.className="reservation-info";
+    
+    // Formatar data de criação
+    let createdAtText = '';
+    if (r.createdAt) {
+      const createdDate = new Date(r.createdAt);
+      const dateStr = createdDate.toLocaleDateString('pt-BR');
+      const timeStr = createdDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      createdAtText = `<br><span style="color:#999; font-size:11px;">📅 Reservado em: ${dateStr} às ${timeStr}</span>`;
+    }
+    
+    info.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+        <span style="display:inline-block; width:12px; height:12px; background:${userColor}; border-radius:50%; border:2px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></span>
+        <strong style="color:#333; font-size:15px;">${r.placeName}</strong>
+      </div>
+      <span style="color:#666; font-size:13px;">⏰ ${periodTxt} • 👤 ${r.username}</span>${createdAtText}
+    `;
+    div.appendChild(info);
+
+    if (user && (user.id === r.userId || user.role === "admin")){
+      const btnContainer = document.createElement("div");
+      btnContainer.className="reservation-buttons";
+
+      const btnEdit = document.createElement("button");
+      btnEdit.textContent="✏️ Editar";
+      btnEdit.className="btn-small btn-secondary";
+      btnEdit.onclick = () => editReserva(r);
+
+      const btnDel = document.createElement("button");
+      btnDel.textContent="🗑️ Excluir";
+      btnDel.className="btn-small btn-danger";
+      btnDel.onclick = () => deleteReserva(r);
+
+      btnContainer.appendChild(btnEdit);
+      btnContainer.appendChild(btnDel);
+      div.appendChild(btnContainer);
+    }
+
+    listaReservas.appendChild(div);
+  });
+}
+
+async function editReserva(r){
+  const newPeriod = prompt("Período (dia/manha/tarde/custom):", r.period) || r.period;
+  let start=r.start, end=r.end;
+
+  if (newPeriod === "custom"){
+    start = prompt("Início (HH:MM):", r.start || "");
+    end = prompt("Fim (HH:MM):", r.end || "");
+    if (!start||!end) return alert("Horários inválidos");
+    if (start >= end) return alert("Erro: início >= fim");
+  } else {
+    start=""; end="";
+  }
+
+  await updateDoc(doc(db,'reservations',r.id), {
+    period:newPeriod, start, end
+  });
+
+  renderCalendar();
+  loadReservas(r.date);
+}
+
+async function deleteReserva(r){
+  if (!confirm("Excluir reserva?")) return;
+  await deleteDoc(doc(db,'reservations',r.id));
+  renderCalendar();
+  loadReservas(r.date);
+}
+
+function horariosConflitam(novo, existente) {
+  // Dia todo bloqueia tudo
+  if (novo.period === "dia" || existente.period === "dia") {
+    return true;
+  }
+
+  // Manhã x Manhã
+  if (novo.period === "manha" && existente.period === "manha") {
+    return true;
+  }
+
+  // Tarde x Tarde
+  if (novo.period === "tarde" && existente.period === "tarde") {
+    return true;
+  }
+
+  // Manhã x Dia todo / Tarde x Dia todo já tratado acima
+  if (
+    (novo.period === "manha" && existente.period === "tarde") ||
+    (novo.period === "tarde" && existente.period === "manha")
+  ) {
+    return false;
+  }
+
+  // Se um dos dois for custom, converte tudo em horário
+  function periodoParaHorario(p) {
+    if (p.period === "manha") return { start: "08:00", end: "12:00" };
+    if (p.period === "tarde") return { start: "13:00", end: "18:00" };
+    return { start: p.start, end: p.end };
+  }
+
+  const a = periodoParaHorario(novo);
+  const b = periodoParaHorario(existente);
+
+  // Regra de sobreposição
+  return a.start < b.end && a.end > b.start;
+}
+
+
+btnCriarReserva.onclick = async () => {
+  if (!selectedDate) return showAlert("Selecione um dia");
+
+  const user = JSON.parse(sessionStorage.getItem("loggedUser"));
+  if (!user) return showAlert("Usuário não logado");
+
+  const placeId = selectPlace.value;
+  if (!placeId) return showAlert("Selecione um local");
+
+  const pdoc = await getDoc(doc(db,'places',placeId));
+  const placeName = pdoc.exists() ? pdoc.data().name : "Local";
+
+  const period = periodoReserva.value;
+  let start='', end='';
+
+  if (period === "custom"){
+    start = horaInicio.value;
+    end = horaFim.value;
+    if (!start || !end) return showAlert("Informe horários");
+    if (start >= end) return showAlert("Horário inválido");
+  }
+
+  // 🔍 Buscar reservas do mesmo dia e local
+  const snap = await getDocs(collection(db,'reservations'));
+  const reservasDoDia = snap.docs
+    .map(d => ({ ...d.data(), id: d.id }))
+    .filter(r => r.date === selectedDate && r.placeId === placeId);
+
+  // 🔥 Verificar conflito - Admin pode reservar junto com outros usuários
+  if (user.role !== "admin") {
+    // Se não é admin, verifica se já existe alguma reserva no local nesse dia
+    if (reservasDoDia.length > 0) {
+      alert("❌ Este local já possui uma reserva para este dia. Apenas administradores podem fazer múltiplas reservas no mesmo local.");
+      return;
+    }
+  } else {
+    // Se é admin, verifica apenas conflito de horário
+    for (const r of reservasDoDia) {
+      const existeConflito = horariosConflitam(
+        { period, start, end },
+        r
+      );
+
+      if (existeConflito) {
+        alert("❌ Conflito de horário com outra visita neste local.");
+        return;
+      }
+    }
+  }
+
+  // ✅ Se passou, salva
+  await addDoc(collection(db,'reservations'), {
+    userId: user.id,
+    username: user.username,
+    placeId,
+    placeName,
+    date: selectedDate,
+    period,
+    start,
+    end,
+    createdAt: new Date().toISOString(),
+    createdBy: user.username
+  });
+
+  showAlert("Reserva criada!");
+  renderCalendar();
+  loadReservas(selectedDate);
+};
+
+
+/* =============================================
+   🚀 INICIALIZAÇÃO
+================================================ */
+(async function init(){
+  const user = sessionStorage.getItem("loggedUser");
+  if (user) {
+    loadUIAfterLogin();
+  }
+})();
+
+// ===============================
+// 📦 REGISTRO DO SERVICE WORKER
+// ===============================
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then(reg => {
+        console.log("✅ Service Worker registrado:", reg.scope);
+      })
+      .catch(err => {
+        console.error("❌ Falha ao registrar Service Worker:", err);
+      });
+  });
+}
+
+</script>
+ </body>
+</html>
