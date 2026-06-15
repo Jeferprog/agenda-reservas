@@ -2,54 +2,80 @@
  * Migração ÚNICA: copia os usuários da coleção `users` do Firestore
  * para a Planilha Google (aba "Usuarios").
  *
+ * Este arquivo é AUTOSSUFICIENTE — não depende do Code.gs. Pode ser colado
+ * sozinho num projeto Apps Script só para rodar a migração.
+ *
  * COMO USAR (rodar uma única vez):
- *   1. Cole este arquivo no MESMO projeto Apps Script do Code.gs.
- *   2. Garanta que USERS_SHEET_ID já está configurado (ver gas/README.md).
+ *   1. Configure a propriedade do script USERS_SHEET_ID (ver gas/README.md).
+ *   2. Garanta os escopos do manifesto (gas/appsscript.json), incluindo
+ *      "datastore".
  *   3. No editor do Apps Script, selecione a função
- *      "migrarUsuariosDoFirestore" e clique em ▶ Executar.
- *      (autorize os escopos solicitados — ver README, seção Migração).
+ *      "migrarUsuariosDoFirestore" e clique em ▶ Executar. Autorize.
  *   4. Veja o resultado em "Registros de execução" (Logs).
  *   5. Confira a planilha. Depois exclua a coleção `users` do Firestore.
- *
- * Reaproveita getSheet_(), readUsers_() e colorFor_() do Code.gs.
  */
 
 const FIRESTORE_PROJECT_ID = 'minhaagenda-5fc2d';
 
 function migrarUsuariosDoFirestore() {
+  const sh = mig_getSheet_();
+
   // usuários já presentes na planilha (para não duplicar)
   const existing = {};
-  readUsers_().forEach(u => existing[u.username.toLowerCase()] = true);
+  const values = sh.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) { // pula cabeçalho
+    const nm = String(values[i][1] || '').toLowerCase();
+    if (nm) existing[nm] = true;
+  }
 
-  const docs = fetchFirestoreCollection_('users');
-  const sh = getSheet_();
+  const docs = mig_fetchFirestore_('users');
   let add = 0, skip = 0, semNome = 0;
 
   docs.forEach(d => {
     const f = d.fields || {};
-    const username = strVal_(f.username) || strVal_(f.name); // 'name' = legado
+    const username = mig_str_(f.username) || mig_str_(f.name); // 'name' = legado
     if (!username) { semNome++; return; }
-
     if (existing[username.toLowerCase()]) { skip++; return; }
 
-    const password = strVal_(f.password);
-    let role = strVal_(f.role) || 'user';
+    const password = mig_str_(f.password);
+    let role = mig_str_(f.role) || 'user';
     role = (role === 'admin') ? 'admin' : 'user';
-    let color = strVal_(f.customColor) || strVal_(f.color);
-    if (!color) color = colorFor_(username);
+    let color = mig_str_(f.customColor) || mig_str_(f.color);
+    if (!color) color = mig_colorFor_(username);
 
     sh.appendRow([Utilities.getUuid(), username, password, role, color]);
     existing[username.toLowerCase()] = true;
     add++;
   });
 
-  const msg = `Migração concluída: ${add} adicionado(s), ${skip} já existia(m), ${semNome} sem nome (ignorado(s)). Total lido do Firestore: ${docs.length}.`;
+  const msg = `Migração concluída: ${add} adicionado(s), ${skip} já existia(m), ` +
+              `${semNome} sem nome (ignorado(s)). Total lido do Firestore: ${docs.length}.`;
   Logger.log(msg);
   return msg;
 }
 
+/** Abre a aba "Usuarios" da planilha definida em USERS_SHEET_ID. */
+function mig_getSheet_() {
+  const id = PropertiesService.getScriptProperties().getProperty('USERS_SHEET_ID');
+  if (!id) throw new Error('Configure a propriedade do script USERS_SHEET_ID.');
+  const ss = SpreadsheetApp.openById(id);
+  let sh = ss.getSheetByName('Usuarios');
+  if (!sh) sh = ss.insertSheet('Usuarios');
+  if (sh.getLastRow() === 0) sh.appendRow(['id', 'username', 'password', 'role', 'color']);
+  return sh;
+}
+
+/** Cor consistente a partir do nome (mesma paleta do app). */
+function mig_colorFor_(username) {
+  const palette = ['#005c46', '#f58220', '#d62828', '#003049', '#f77f00',
+                   '#2a9d8f', '#264653', '#e76f51', '#6610f2', '#e83e8c'];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  return palette[Math.abs(hash) % palette.length];
+}
+
 /** Lê todos os documentos de uma coleção via Firestore REST (acesso admin do dono). */
-function fetchFirestoreCollection_(collection) {
+function mig_fetchFirestore_(collection) {
   const token = ScriptApp.getOAuthToken();
   let docs = [], pageToken = '';
   do {
@@ -71,8 +97,8 @@ function fetchFirestoreCollection_(collection) {
   return docs;
 }
 
-/** Extrai o valor textual de um campo do formato REST do Firestore. */
-function strVal_(field) {
+/** Extrai o valor textual de um campo no formato REST do Firestore. */
+function mig_str_(field) {
   if (!field) return '';
   if (field.stringValue != null) return String(field.stringValue);
   if (field.integerValue != null) return String(field.integerValue);
