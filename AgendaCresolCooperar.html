@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Cresol Cooperar</title>
+
+    <!-- FIREBASE V9 COMPAT -->
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-green: #005c46;
+            --accent-orange: #f58220;
+            --bg-body: #f8f9fa;
+            --border-radius: 8px;
+            --text-gray: #6c757d;
+        }
+
+        * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
+        body { background-color: var(--bg-body); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .hidden { display: none !important; }
+
+        header { text-align: center; margin-bottom: 20px; width: 100%; }
+        header h1 { color: var(--primary-green); text-transform: uppercase; font-weight: 700; margin: 5px 0; font-size: 1.6rem; }
+        .badge { background-color: var(--accent-orange); color: white; padding: 4px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+
+        .card { background: white; border-radius: var(--border-radius); box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; border-left: 6px solid var(--accent-orange); width: 100%; }
+        .card-verde { border-left-color: var(--primary-green); }
+        .card-app { max-width: 1250px; }
+
+        .cal-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; }
+        .cal-table th { background: #eee; padding: 10px; border: 1px solid #ddd; font-size: 0.8rem; }
+        .cal-table td { height: 135px; border: 1px solid #ddd; vertical-align: top; padding: 5px; cursor: pointer; }
+        .cal-day-num { font-weight: bold; color: #777; font-size: 0.85rem; }
+        .reserva-tag { font-size: 0.65rem; padding: 4px; border-radius: 4px; margin-top: 3px; color: white; font-weight: bold; line-height: 1.2; word-wrap: break-word; display: block; box-shadow: 1px 1px 3px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s; }
+        .reserva-tag:hover { transform: scale(1.02); filter: brightness(1.1); }
+
+        .btn-primary { background-color: var(--accent-orange); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 700; width: 100%; text-transform: uppercase; }
+        .btn-outline { background: transparent; border: 1px solid #ccc; padding: 8px 15px; border-radius: 6px; cursor: pointer; color: var(--text-gray); font-weight: bold;}
+        .btn-small { padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer; color: white; margin-left: 4px; }
+        .btn-edit { background: var(--primary-green); }
+        .btn-del { background: #dc3545; }
+
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } }
+        .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; }
+        .color-preview { width: 22px; height: 22px; border-radius: 4px; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3); cursor: pointer; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+
+        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px); }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: white; border-left: 5px solid var(--primary-green); box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 15px 20px; border-radius: 6px; display: flex; align-items: center; gap: 10px; transform: translateX(120%); transition: transform 0.3s ease-out; min-width: 250px; font-weight: 500; color: #333; }
+        .toast.show { transform: translateX(0); }
+        .toast.error { border-left-color: #dc3545; }
+        .toast.warning { border-left-color: var(--accent-orange); }
+        .toast-icon { font-size: 1.2rem; }
+
+        #loading { position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        .spinner { border: 5px solid #f3f3f3; border-top: 5px solid var(--accent-orange); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading"><div class="spinner"></div><p style="margin-top:15px; color:var(--primary-green); font-weight:bold;">Aguarde...</p></div>
+
+    <header>
+        <span class="badge">SISTEMA CRESOL COOPERAR</span>
+        <h1>Agenda de Visitas</h1>
+    </header>
+
+    <!-- TELA INICIAL: VISUALIZADOR (PÚBLICA) -->
+    <section id="publicCard" class="card card-app">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="margin:0; color:var(--primary-green)">Visão Geral da Agenda</h3>
+            <button id="btnGoToLogin" class="btn-outline" style="border-color: var(--primary-green); color: var(--primary-green);">Acesso Restrito</button>
+        </div>
+        <div class="card card-verde" style="padding:15px; margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <button class="btn-outline" id="btnPrevPub">◀</button>
+                <h3 id="mesAnoAtualPub" style="margin:0;"></h3>
+                <button class="btn-outline" id="btnNextPub">▶</button>
+            </div>
+            <table class="cal-table">
+                <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
+                <tbody id="calBodyPub"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- TELA DE LOGIN -->
+    <section id="authCard" class="card hidden" style="max-width: 400px;">
+        <h2 style="text-align: center; color: var(--primary-green);">🔐 Login</h2>
+        <div class="form-group"><label>Usuário:</label><input type="text" id="usernameLogin"></div>
+        <div class="form-group"><label>Senha:</label><input type="password" id="senhaLogin"></div>
+        <button class="btn-primary" id="btnLogin" style="margin-bottom: 10px;">Acessar</button>
+        <button class="btn-outline" id="btnBackToPub" style="width: 100%;">Voltar para Agenda</button>
+    </section>
+
+    <!-- TELA DO USUÁRIO LOGADO (AGENDAR) -->
+    <section id="reservasCard" class="card card-app hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 id="boasVindas" style="margin:0; color:var(--primary-green)"></h3>
+            <div style="display:flex; gap:10px;">
+                <button id="btnAdmin" class="btn-outline hidden">⚙ Administração</button>
+                <button id="btnLogout" class="btn-outline">Sair</button>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px;">
+            <div class="card card-verde" style="padding:15px; margin-bottom: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <button class="btn-outline" id="btnPrev">◀</button>
+                    <h3 id="mesAnoAtual" style="margin:0;"></h3>
+                    <button class="btn-outline" id="btnNext">▶</button>
+                </div>
+                <table class="cal-table">
+                    <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
+                    <tbody id="calBody"></tbody>
+                </table>
+            </div>
+            <div class="card" style="padding:15px; margin-bottom: 0;">
+                <h3 style="color:var(--primary-green)">➕ Agendar</h3>
+                <p id="labelData" style="font-weight:bold; color:var(--accent-orange); font-size:0.8rem;">Selecione um dia no calendário</p>
+                <div class="form-group"><label>Local:</label><select id="selectPlace"></select></div>
+                <div class="form-group">
+                    <label>Período:</label>
+                    <select id="selectPeriodo">
+                        <option value="Dia todo">Dia todo</option>
+                        <option value="Manhã">Manhã</option>
+                        <option value="Tarde">Tarde</option>
+                    </select>
+                </div>
+                <button class="btn-primary" id="btnAgendar">Confirmar Reserva</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- TELA DE ADMINISTRAÇÃO -->
+    <section id="adminCard" class="card card-app hidden">
+        <h2 style="color:var(--primary-green)">⚙ Manutenção</h2>
+        <div class="admin-grid">
+            <div>
+                <h3>📍 Locais</h3>
+                <div style="display:flex; gap:5px; margin-bottom:15px;"><input type="text" id="novoPlaceNome" placeholder="Nova Unidade"><button class="btn-primary" id="btnAddPlace" style="width:70px;">+</button></div>
+                <div id="adminListaPlaces"></div>
+            </div>
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:center;"><h3>👥 Colaboradores</h3><button class="btn-outline" id="btnOpenAddUser">+ Novo</button></div>
+                <div id="adminListaUsers"></div>
+            </div>
+        </div>
+        <button class="btn-outline" id="btnVoltarAdmin" style="margin-top:20px;">Voltar</button>
+    </section>
+
+    <div id="modalUserBg" class="modal-bg">
+        <div class="card" style="max-width: 400px; border-left:10px solid var(--accent-orange);">
+            <h3>Cadastrar Usuário</h3>
+            <div class="form-group"><label>Nome:</label><input type="text" id="addUserName"></div>
+            <div class="form-group"><label>Senha:</label><input type="password" id="addUserPassword"></div>
+            <div class="form-group"><label>Cargo:</label><select id="addUserRole"><option value="user">Colaborador</option><option value="admin">Administrador</option></select></div>
+            <div style="display:flex; gap:10px;"><button class="btn-primary" id="btnSalvarUser">Salvar</button><button class="btn-outline" id="btnFecharUser">Fechar</button></div>
+        </div>
+    </div>
+
+    <div id="modalColorBg" class="modal-bg">
+        <div class="card" style="max-width: 400px;">
+            <h3>🎨 Escolher Cor</h3>
+            <div id="colorPalette" style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:20px 0;"></div>
+            <input type="color" id="customColorPicker" style="width:100%; height:40px; cursor:pointer;">
+            <div style="display:flex; gap:10px; margin-top:20px;"><button class="btn-primary" id="btnSaveColor">Salvar</button><button class="btn-outline" id="btnCancelColor">Cancelar</button></div>
+        </div>
+    </div>
+
+    <div id="modalEditReservaBg" class="modal-bg">
+        <div class="card" style="max-width: 400px; border-left:10px solid var(--accent-orange);">
+            <h3>Editar Reserva</h3>
+            <p id="editReservaInfo" style="font-size: 0.85rem; color: #666; margin-bottom: 15px;"></p>
+            <div class="form-group"><label>Local:</label><select id="editSelectPlace"></select></div>
+            <div class="form-group">
+                <label>Período:</label>
+                <select id="editSelectPeriodo">
+                    <option value="Dia todo">Dia todo</option>
+                    <option value="Manhã">Manhã</option>
+                    <option value="Tarde">Tarde</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                <button class="btn-primary" id="btnSalvarReserva" style="flex: 1;">Salvar</button>
+                <button class="btn-primary btn-del" id="btnExcluirReserva" style="flex: 1;">Excluir</button>
+                <button class="btn-outline" id="btnFecharEditReserva" style="width: 100%;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- CUSTOM CONFIRM -->
+    <div id="customConfirmBg" class="modal-bg">
+        <div class="card" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color: var(--primary-green); font-size: 1.4rem;">Confirmação</h3>
+            <p id="customConfirmMessage" style="margin-bottom: 25px; font-size: 1.1rem; color: #444;"></p>
+            <div style="display:flex; gap:10px; justify-content: center;">
+                <button class="btn-primary" id="btnConfirmYes" style="flex: 1;">Sim</button>
+                <button class="btn-outline" id="btnConfirmNo" style="flex: 1;">Não</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM PROMPT -->
+    <div id="customPromptBg" class="modal-bg">
+        <div class="card" style="max-width: 350px; text-align: center; padding: 30px 20px;">
+            <h3 style="margin-top:0; color: var(--primary-green); font-size: 1.4rem;">Entrada de Dados</h3>
+            <p id="customPromptMessage" style="margin-bottom: 15px; font-size: 1rem; color: #444;"></p>
+            <input type="text" id="customPromptInput" style="margin-bottom: 20px; text-align: center; font-size: 1.1rem;">
+            <div style="display:flex; gap:10px; justify-content: center;">
+                <button class="btn-primary" id="btnPromptOk" style="flex: 1;">OK</button>
+                <button class="btn-outline" id="btnPromptCancel" style="flex: 1;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBgYWUTMu6BgTh8kZC1zOb6v910lk_fCK8",
+            authDomain: "minhaagenda-5fc2d.firebaseapp.com",
+            projectId: "minhaagenda-5fc2d",
+            storageBucket: "minhaagenda-5fc2d.firebasestorage.app",
+            messagingSenderId: "608476496",
+            appId: "1:608476496:web:3727dfa26ce356303f2055"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Helper: chama uma função do servidor GAS e devolve uma Promise.
+        // Login e gestão de usuários rodam no servidor; senhas não vêm ao navegador.
+        function gasCall(fn) {
+            const args = Array.prototype.slice.call(arguments, 1);
+            return new Promise((resolve, reject) => {
+                if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                    return reject(new Error('Servidor indisponível. Abra o app publicado no Apps Script.'));
+                }
+                const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+                runner[fn].apply(runner, args);
+            });
+        }
+
+        function getToken() { return sessionStorage.getItem("sessToken") || ""; }
+
+        let dataSelecionada = "";
+        let mesVisualizacao = new Date();
+        let userColorMap = {};
+        let reservaEditId = null;
+        let reservaEditData = null;
+        const userPallete = ['#005c46', '#f58220', '#d62828', '#003049', '#f77f00', '#2a9d8f', '#264653', '#e76f51', '#6610f2', '#e83e8c'];
+
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            return userPallete[Math.abs(hash) % userPallete.length];
+        }
+
+        // FUNÇÕES DE UI CUSTOMIZADAS
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            let icon = '✅';
+            if (type === 'error') icon = '❌';
+            if (type === 'warning') icon = '⚠️';
+            toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            void toast.offsetWidth; // trigger reflow
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function customConfirm(message) {
+            return new Promise((resolve) => {
+                const bg = document.getElementById('customConfirmBg');
+                document.getElementById('customConfirmMessage').innerText = message;
+                bg.style.display = 'flex';
+                const cleanup = () => { bg.style.display = 'none'; };
+                document.getElementById('btnConfirmYes').onclick = () => { cleanup(); resolve(true); };
+                document.getElementById('btnConfirmNo').onclick = () => { cleanup(); resolve(false); };
+            });
+        }
+
+        function customPrompt(message, defaultValue = "", type = "text") {
+            return new Promise((resolve) => {
+                const bg = document.getElementById('customPromptBg');
+                const inputEl = document.getElementById('customPromptInput');
+                document.getElementById('customPromptMessage').innerText = message;
+                inputEl.value = defaultValue;
+                inputEl.type = type;
+                bg.style.display = 'flex';
+                inputEl.focus();
+                const cleanup = () => { bg.style.display = 'none'; };
+                document.getElementById('btnPromptOk').onclick = () => { cleanup(); resolve(inputEl.value); };
+                document.getElementById('btnPromptCancel').onclick = () => { cleanup(); resolve(null); };
+                inputEl.onkeydown = (e) => {
+                    if (e.key === 'Enter') { cleanup(); resolve(inputEl.value); }
+                    if (e.key === 'Escape') { cleanup(); resolve(null); }
+                };
+            });
+        }
+
+        // NAVEGAÇÃO DE TELAS
+        document.getElementById('btnGoToLogin').onclick = () => {
+            document.getElementById('publicCard').classList.add('hidden');
+            document.getElementById('authCard').classList.remove('hidden');
+        };
+        document.getElementById('btnBackToPub').onclick = () => {
+            document.getElementById('authCard').classList.add('hidden');
+            document.getElementById('publicCard').classList.remove('hidden');
+        };
+
+        // LOGIN (validado no servidor GAS — a senha não trafega para o navegador)
+        document.getElementById('btnLogin').onclick = async () => {
+            const userVal = document.getElementById('usernameLogin').value.trim();
+            const passVal = document.getElementById('senhaLogin').value.trim();
+            document.getElementById('loading').style.display = "flex";
+            try {
+                const res = await gasCall('login', userVal, passVal);
+                if(res && res.ok) {
+                    sessionStorage.setItem("loggedUser", JSON.stringify(res.user));
+                    sessionStorage.setItem("sessToken", res.token);
+                    document.getElementById('senhaLogin').value = "";
+                    checkLoginState();
+                } else {
+                    showToast((res && res.message) || "Usuário ou senha inválidos.", "error");
+                }
+            } catch(e) {
+                showToast(e.message || "Falha ao conectar ao servidor.", "error");
+            } finally {
+                document.getElementById('loading').style.display = "none";
+            }
+        };
+
+        // RENDERIZAR CALENDÁRIO (Serve para o Público e para o Logado)
+        function renderCalendar() {
+            const ano = mesVisualizacao.getFullYear();
+            const mes = mesVisualizacao.getMonth();
+            const nomeMes = new Intl.DateTimeFormat('pt-BR', {month:'long', year:'numeric'}).format(mesVisualizacao).toUpperCase();
+
+            document.getElementById('mesAnoAtual').innerText = nomeMes;
+            document.getElementById('mesAnoAtualPub').innerText = nomeMes;
+
+            const primeiroDia = new Date(ano, mes, 1).getDay();
+            const diasNoMes = new Date(ano, mes + 1, 0).getDate();
+
+            // Renderiza para o Logado
+            const calBody = document.getElementById('calBody');
+            calBody.innerHTML = "";
+            let tr = document.createElement('tr');
+            for(let i=0; i<primeiroDia; i++) tr.insertCell();
+            for(let dia=1; dia<=diasNoMes; dia++){
+                if(tr.cells.length === 7) { calBody.appendChild(tr); tr = document.createElement('tr'); }
+                const cell = tr.insertCell();
+                const dataIso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                cell.id = "cell-" + dataIso;
+                cell.innerHTML = `<span class="cal-day-num">${dia}</span><div class="reserva-container"></div>`;
+                cell.onclick = () => {
+                    dataSelecionada = dataIso;
+                    document.getElementById('labelData').innerText = "DIA: " + String(dia).padStart(2,'0') + "/" + String(mes+1).padStart(2,'0') + "/" + ano;
+                    // Remove destaque anterior
+                    document.querySelectorAll('#calBody td').forEach(td => td.style.backgroundColor = '');
+                    cell.style.backgroundColor = '#fff3e0'; // Destaque na seleção
+                };
+            }
+            calBody.appendChild(tr);
+
+            // Renderiza para o Público
+            const calBodyPub = document.getElementById('calBodyPub');
+            calBodyPub.innerHTML = "";
+            let trPub = document.createElement('tr');
+            for(let i=0; i<primeiroDia; i++) trPub.insertCell();
+            for(let dia=1; dia<=diasNoMes; dia++){
+                if(trPub.cells.length === 7) { calBodyPub.appendChild(trPub); trPub = document.createElement('tr'); }
+                const cellPub = trPub.insertCell();
+                const dataIso = `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                cellPub.id = "cell-pub-" + dataIso;
+                cellPub.innerHTML = `<span class="cal-day-num">${dia}</span><div class="reserva-container"></div>`;
+                cellPub.style.cursor = 'default'; // Sem clique no público
+            }
+            calBodyPub.appendChild(trPub);
+
+            syncReservas();
+        }
+
+        // SINCRONIZAR RESERVAS (Para ambos os calendários)
+        function syncReservas() {
+            db.collection('reservations').onSnapshot(snap => {
+                document.querySelectorAll('.reserva-container').forEach(c => c.innerHTML = "");
+                snap.forEach(doc => {
+                    const r = doc.data();
+                    const nome = r.userName || r.username || "---";
+                    const cor = userColorMap[nome] || r.userColor || stringToColor(nome);
+                    const texto = `${nome} | ${r.placeName || r.local || "---"} (${r.period || 'Dia todo'})`;
+
+                    // Adiciona no calendário logado
+                    const cell = document.getElementById("cell-" + r.date);
+                    if(cell) {
+                        const tag = document.createElement('div');
+                        tag.className = "reserva-tag";
+                        tag.style.backgroundColor = cor;
+                        tag.innerText = texto;
+                        tag.onclick = (e) => {
+                            e.stopPropagation(); // Evita selecionar a data ao clicar na reserva
+                            const u = JSON.parse(sessionStorage.getItem("loggedUser"));
+                            if(u && (u.role === 'admin' || u.username === nome)) {
+                                abrirModalEdicao(doc.id, r, nome);
+                            } else {
+                                showToast("Você não tem permissão para editar esta reserva.", "error");
+                            }
+                        };
+                        cell.querySelector('.reserva-container').appendChild(tag);
+                    }
+
+                    // Adiciona no calendário público
+                    const cellPub = document.getElementById("cell-pub-" + r.date);
+                    if(cellPub) {
+                        const tagPub = document.createElement('div');
+                        tagPub.className = "reserva-tag";
+                        tagPub.style.backgroundColor = cor;
+                        tagPub.innerText = texto;
+                        cellPub.querySelector('.reserva-container').appendChild(tagPub);
+                    }
+                });
+            });
+        }
+
+        // CARREGAR MAPA DE CORES (público — username -> cor atual, sem senhas)
+        async function loadColorMap() {
+            try {
+                const arr = await gasCall('getColorMap');
+                userColorMap = {};
+                arr.forEach(x => { userColorMap[x.username] = x.color; });
+            } catch(e) {
+                console.warn("Não foi possível carregar o mapa de cores:", e.message);
+            }
+        }
+
+        // CARREGAR LISTA DE USUÁRIOS (do servidor GAS — somente admin)
+        async function loadUsersAdmin() {
+            const list = document.getElementById('adminListaUsers');
+            if(!list) return;
+            const u = JSON.parse(sessionStorage.getItem("loggedUser") || "null");
+            if(!u || u.role !== 'admin') { list.innerHTML = ""; return; }
+            list.innerHTML = "<p style='color:#888;'>Carregando...</p>";
+            try {
+                const users = await gasCall('listUsers', getToken());
+                list.innerHTML = "";
+                users.forEach(usr => {
+                    const cor = usr.color || stringToColor(usr.username);
+                    list.innerHTML += `
+                        <div class="admin-item">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="color-preview" style="background:${cor}" onclick="openColorPicker('${usr.id}', '${cor}')"></div>
+                                <b>${usr.username}</b> <span style="font-size:0.7rem; color:#888;">(${usr.role})</span>
+                            </div>
+                            <div>
+                                <button class="btn-small btn-edit" onclick="editUser('${usr.id}', '${usr.username}')">🔑</button>
+                                <button class="btn-small btn-del" onclick="deleteUser('${usr.id}')">🗑️</button>
+                            </div>
+                        </div>`;
+                });
+            } catch(e) {
+                list.innerHTML = `<p style='color:#dc3545;'>${e.message || 'Erro ao carregar usuários.'}</p>`;
+            }
+        }
+
+        // CARREGAR LOCAIS (continuam no Firestore)
+        function loadPlaces() {
+            db.collection('places').orderBy('name').onSnapshot(snap => {
+                const sel = document.getElementById('selectPlace');
+                const editSel = document.getElementById('editSelectPlace');
+                const list = document.getElementById('adminListaPlaces');
+                if(sel) sel.innerHTML = '<option value="">Selecione...</option>';
+                if(editSel) editSel.innerHTML = '<option value="">Selecione...</option>';
+                if(list) list.innerHTML = "";
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    if(sel) sel.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+                    if(editSel) editSel.innerHTML += `<option value="${p.name}">${p.name}</option>`;
+                    if(list) list.innerHTML += `<div class="admin-item"><span>📍 ${p.name}</span><div><button class="btn-small btn-edit" onclick="editPlace('${doc.id}', '${p.name}')">✏️</button><button class="btn-small btn-del" onclick="deletePlace('${doc.id}')">🗑️</button></div></div>`;
+                });
+            });
+        }
+
+        window.editPlace = async (id, old) => { const n = await customPrompt("Novo nome do local:", old); if(n && n !== old) await db.collection('places').doc(id).update({ name: n }); };
+        window.editUser = async (id, name) => {
+            const p = await customPrompt(`Nova senha para ${name}:`, "", "password");
+            if(!p) return;
+            try { await gasCall('updateUserPassword', getToken(), id, p); showToast("Senha alterada com sucesso!"); }
+            catch(e) { showToast(e.message || "Erro ao alterar senha.", "error"); }
+        };
+        window.deletePlace = async id => { if(await customConfirm("Tem certeza que deseja excluir este local?")) db.collection('places').doc(id).delete(); };
+        window.deleteUser = async id => {
+            if(!(await customConfirm("Tem certeza que deseja excluir este usuário?"))) return;
+            try { await gasCall('deleteUser', getToken(), id); showToast("Usuário excluído."); loadUsersAdmin(); }
+            catch(e) { showToast(e.message || "Erro ao excluir usuário.", "error"); }
+        };
+
+        window.openColorPicker = (id, current) => {
+            const m = document.getElementById('modalColorBg');
+            const p = document.getElementById('colorPalette');
+            p.innerHTML = ""; m.style.display = "flex";
+            userPallete.forEach(c => {
+                const d = document.createElement('div');
+                d.style.cssText = `width:100%; aspect-ratio:1; background:${c}; border-radius:6px; cursor:pointer; border:2px solid white;`;
+                d.onclick = () => document.getElementById('customColorPicker').value = c;
+                p.appendChild(d);
+            });
+            document.getElementById('btnSaveColor').onclick = async () => {
+                try {
+                    await gasCall('updateUserColor', getToken(), id, document.getElementById('customColorPicker').value);
+                    m.style.display = "none";
+                    await loadColorMap();
+                    renderCalendar();
+                    loadUsersAdmin();
+                } catch(e) { showToast(e.message || "Erro ao salvar cor.", "error"); }
+            };
+        };
+
+        document.getElementById('btnCancelColor').onclick = () => document.getElementById('modalColorBg').style.display = "none";
+        document.getElementById('btnOpenAddUser').onclick = () => document.getElementById('modalUserBg').style.display = "flex";
+        document.getElementById('btnFecharUser').onclick = () => document.getElementById('modalUserBg').style.display = "none";
+        document.getElementById('btnSalvarUser').onclick = async () => {
+            const u = document.getElementById('addUserName').value.trim();
+            const p = document.getElementById('addUserPassword').value.trim();
+            const r = document.getElementById('addUserRole').value;
+            if(!u || !p) return showToast("Preencha nome e senha.", "warning");
+            try {
+                await gasCall('addUser', getToken(), u, p, r);
+                document.getElementById('addUserName').value = "";
+                document.getElementById('addUserPassword').value = "";
+                document.getElementById('modalUserBg').style.display = "none";
+                showToast("Usuário cadastrado.");
+                loadUsersAdmin();
+            } catch(e) { showToast(e.message || "Erro ao cadastrar usuário.", "error"); }
+        };
+        document.getElementById('btnAddPlace').onclick = () => { const n = document.getElementById('novoPlaceNome').value.trim(); if(n) db.collection('places').add({ name: n }); document.getElementById('novoPlaceNome').value = ""; };
+
+        function abrirModalEdicao(id, r, nome) {
+            reservaEditId = id;
+            reservaEditData = r;
+            const dataFormatada = r.date.split('-').reverse().join('/');
+            document.getElementById('editReservaInfo').innerText = `Usuário: ${nome} | Data: ${dataFormatada}`;
+            document.getElementById('editSelectPlace').value = r.placeName || r.local || "";
+            document.getElementById('editSelectPeriodo').value = r.period || "Dia todo";
+            document.getElementById('modalEditReservaBg').style.display = "flex";
+        }
+
+        document.getElementById('btnFecharEditReserva').onclick = () => {
+            document.getElementById('modalEditReservaBg').style.display = "none";
+            reservaEditId = null;
+            reservaEditData = null;
+        };
+
+        document.getElementById('btnSalvarReserva').onclick = async () => {
+            if(!reservaEditId) return;
+            const l = document.getElementById('editSelectPlace').value;
+            const p = document.getElementById('editSelectPeriodo').value;
+            if(!l) return showToast("Selecione um local!", "warning");
+
+            const u = JSON.parse(sessionStorage.getItem("loggedUser"));
+
+            if (l !== reservaEditData.placeName) {
+                const q = await db.collection('reservations').where('date','==',reservaEditData.date).where('placeName','==',l).get();
+                if(u.role !== 'admin' && !q.empty) return showToast("O novo local já está ocupado nesta data.", "error");
+            }
+
+            await db.collection('reservations').doc(reservaEditId).update({
+                placeName: l,
+                period: p
+            });
+            showToast("Reserva atualizada com sucesso!");
+            document.getElementById('modalEditReservaBg').style.display = "none";
+        };
+
+        document.getElementById('btnExcluirReserva').onclick = async () => {
+            if(!reservaEditId) return;
+            if(await customConfirm("Tem certeza que deseja excluir esta reserva?")) {
+                await db.collection('reservations').doc(reservaEditId).delete();
+                showToast("Reserva excluída com sucesso!");
+                document.getElementById('modalEditReservaBg').style.display = "none";
+            }
+        };
+
+        document.getElementById('btnAgendar').onclick = async () => {
+            const u = JSON.parse(sessionStorage.getItem("loggedUser"));
+            const l = document.getElementById('selectPlace').value;
+            if(!dataSelecionada || !l) return showToast("Selecione data e local no calendário!", "warning");
+            const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
+            if(u.role !== 'admin' && !q.empty) return showToast("Este local já está ocupado nesta data.", "error");
+            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: document.getElementById('selectPeriodo').value, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            showToast("Reserva confirmada com sucesso!");
+            dataSelecionada = "";
+            document.getElementById('labelData').innerText = "Selecione um dia no calendário";
+            document.querySelectorAll('#calBody td').forEach(td => td.style.backgroundColor = '');
+        };
+
+        function checkLoginState() {
+            const u = JSON.parse(sessionStorage.getItem("loggedUser"));
+
+            // Esconde todas as telas primeiro
+            document.getElementById('publicCard').classList.add('hidden');
+            document.getElementById('authCard').classList.add('hidden');
+            document.getElementById('reservasCard').classList.add('hidden');
+            document.getElementById('adminCard').classList.add('hidden');
+
+            if(u) {
+                // Logado
+                document.getElementById('reservasCard').classList.remove('hidden');
+                document.getElementById('boasVindas').innerText = "Olá, " + u.username;
+                if(u.role === 'admin') {
+                    document.getElementById('btnAdmin').classList.remove('hidden');
+                } else {
+                    document.getElementById('btnAdmin').classList.add('hidden');
+                }
+            } else {
+                // Não logado -> Tela Pública
+                document.getElementById('publicCard').classList.remove('hidden');
+            }
+
+            renderCalendar();
+        }
+
+        document.getElementById('btnAdmin').onclick = () => { document.getElementById('reservasCard').classList.add('hidden'); document.getElementById('adminCard').classList.remove('hidden'); loadUsersAdmin(); };
+        document.getElementById('btnVoltarAdmin').onclick = () => { document.getElementById('adminCard').classList.add('hidden'); document.getElementById('reservasCard').classList.remove('hidden'); };
+
+        // Navegação Calendário Logado
+        document.getElementById('btnPrev').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()-1); renderCalendar(); };
+        document.getElementById('btnNext').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()+1); renderCalendar(); };
+
+        // Navegação Calendário Público
+        document.getElementById('btnPrevPub').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()-1); renderCalendar(); };
+        document.getElementById('btnNextPub').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()+1); renderCalendar(); };
+
+        document.getElementById('btnLogout').onclick = () => {
+            const t = getToken();
+            if(t) gasCall('logout', t).catch(()=>{});
+            sessionStorage.removeItem("loggedUser");
+            sessionStorage.removeItem("sessToken");
+            checkLoginState();
+        };
+
+        // Inicialização
+        // Autenticação anônima do Firebase: necessária para as regras do
+        // Firestore (locais e reservas). Login de usuário é separado (servidor GAS).
+        auth.signInAnonymously()
+            .then(async () => { await loadColorMap(); loadPlaces(); checkLoginState(); })
+            .catch(async err => {
+                console.error("Falha na autenticação anônima:", err);
+                showToast("Não foi possível conectar ao servidor de dados.", "error");
+                await loadColorMap(); loadPlaces(); checkLoginState();
+            });
+    </script>
+</body>
+</html>
