@@ -66,6 +66,9 @@
         .cal-table th { color:#44474a; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:6px 0; }
         .cal-table td { height:110px; vertical-align:top; border:1px solid rgba(196,199,200,.45); border-radius:8px; padding:6px; background:#fff; transition:border-color .15s, box-shadow .15s; cursor:pointer; }
         .cal-table td:hover { border-color:rgba(0,92,70,.45); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+        /* Domingo (1ª) e Sábado (7ª) mais estreitos — sobra largura para os dias úteis */
+        .cal-table th:first-child, .cal-table th:last-child { width:7%; }
+        .cal-table td:first-child, .cal-table td:last-child { width:7%; background:#f1f4f8; }
         .cal-day-num { font-size:12px; font-weight:700; color:#44474a; }
         /* A célula cresce conforme o número de reservas (sem rolagem interna). */
         .reserva-container { display:flex; flex-direction:column; gap:4px; margin-top:6px; }
@@ -191,7 +194,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Calendário -->
-            <div class="lg:col-span-8 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
+            <div class="lg:col-span-9 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
                 <div class="flex items-center justify-between p-4 border-b border-outline-variant/30 bg-surface">
                     <h3 id="mesAnoAtual" class="text-primary font-bold text-lg"></h3>
                     <div class="flex gap-2">
@@ -208,7 +211,7 @@
             </div>
 
             <!-- Formulário de agendamento -->
-            <div class="lg:col-span-4">
+            <div class="lg:col-span-3">
                 <div class="bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 p-5 lg:sticky lg:top-24">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-11 h-11 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center"><span class="material-symbols-outlined">add_circle</span></div>
