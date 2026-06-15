@@ -103,14 +103,19 @@
 
     <!-- HEADER GLOBAL -->
     <header class="bg-surface-card shadow-sm sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
-                <span class="material-symbols-outlined">calendar_month</span>
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="text-primary font-black text-lg md:text-xl uppercase tracking-tight">Agenda de Visitas</h1>
+                    <p class="text-[11px] text-on-surface-variant font-medium">Cresol Cooperar</p>
+                </div>
             </div>
-            <div class="leading-tight">
-                <h1 class="text-primary font-black text-lg md:text-xl uppercase tracking-tight">Agenda de Visitas</h1>
-                <p class="text-[11px] text-on-surface-variant font-medium">Cresol Cooperar</p>
-            </div>
+            <button id="btnGoToLogin" class="bg-primary text-on-primary flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md hover:bg-primary-dark active:scale-95 transition-all whitespace-nowrap">
+                <span class="material-symbols-outlined">lock</span> Acesso Restrito
+            </button>
         </div>
     </header>
 
@@ -118,17 +123,6 @@
 
     <!-- ===================== TELA PÚBLICA ===================== -->
     <section id="publicCard">
-        <div class="flex flex-col items-center text-center gap-2 mb-6">
-            <span class="bg-primary-container text-on-primary-container px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase inline-flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Sistema Cresol Cooperar
-            </span>
-            <h2 class="text-2xl md:text-3xl font-bold text-primary">Visão Geral da Agenda</h2>
-            <p class="text-on-surface-variant max-w-lg">Consulte a disponibilidade de espaços e agendamentos institucionais.</p>
-            <button id="btnGoToLogin" class="mt-2 bg-primary text-on-primary flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-primary-dark active:scale-95 transition-all">
-                <span class="material-symbols-outlined">lock</span> Acesso Restrito
-            </button>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Calendário público -->
             <div class="lg:col-span-9 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
@@ -455,10 +449,12 @@
         document.getElementById('btnGoToLogin').onclick = () => {
             document.getElementById('publicCard').classList.add('hidden');
             document.getElementById('authCard').classList.remove('hidden');
+            document.getElementById('btnGoToLogin').classList.add('hidden');
         };
         document.getElementById('btnBackToPub').onclick = () => {
             document.getElementById('authCard').classList.add('hidden');
             document.getElementById('publicCard').classList.remove('hidden');
+            document.getElementById('btnGoToLogin').classList.remove('hidden');
         };
 
         // LOGIN (validado no servidor GAS — a senha não trafega para o navegador)
@@ -759,6 +755,7 @@
 
             if(u) {
                 // Logado
+                document.getElementById('btnGoToLogin').classList.add('hidden');
                 document.getElementById('reservasCard').classList.remove('hidden');
                 document.getElementById('boasVindas').innerText = "Olá, " + u.username;
                 if(u.role === 'admin') {
@@ -768,6 +765,7 @@
                 }
             } else {
                 // Não logado -> Tela Pública
+                document.getElementById('btnGoToLogin').classList.remove('hidden');
                 document.getElementById('publicCard').classList.remove('hidden');
             }
 
