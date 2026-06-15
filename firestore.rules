@@ -51,8 +51,8 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.date is string
-        && request.resource.data.placeId is string
-        && request.resource.data.username is string;
+        && request.resource.data.placeName is string
+        && request.resource.data.userName is string;
       allow update, delete: if signedIn();
     }
 
