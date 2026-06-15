@@ -11,9 +11,10 @@ rules_version = '2';
 //      login anônimo (já incluída no HTML). Caso contrário o app para de
 //      funcionar.
 //
-// Observação: o papel admin/user continua sendo verificado no cliente, pois
-// o login anônimo não carrega esse dado no token. Estas regras impedem acesso
-// direto ao banco por quem não passa pelo app, e validam o formato dos dados.
+// Observação: o login de usuário (com senha) é feito no SERVIDOR (Apps Script)
+// e não usa o Firestore. A autenticação anônima aqui serve apenas para liberar
+// o acesso a 'places' e 'reservations' (dados não sensíveis) e bloquear acesso
+// direto de quem não passa pelo app.
 // ============================================================================
 
 service cloud.firestore {
@@ -25,15 +26,12 @@ service cloud.firestore {
     }
 
     // ---- Usuários ----
+    // Usuários e senhas foram movidos para uma Planilha Google, acessada
+    // apenas pelo servidor (GAS). O navegador NÃO acessa mais esta coleção.
+    // ATENÇÃO: após migrar os usuários para a planilha, exclua a coleção
+    // 'users' do Firestore (ela contém senhas em texto puro).
     match /users/{userId} {
-      allow read: if signedIn();
-      allow create, update: if signedIn()
-        && request.resource.data.username is string
-        && request.resource.data.username.size() > 0
-        && request.resource.data.username.size() <= 100
-        && request.resource.data.password is string
-        && request.resource.data.role in ['admin', 'user'];
-      allow delete: if signedIn();
+      allow read, write: if false;
     }
 
     // ---- Locais / Agências ----

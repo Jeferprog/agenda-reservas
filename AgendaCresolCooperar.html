@@ -9,6 +9,7 @@
     <!-- FIREBASE V9 COMPAT -->
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 
@@ -241,6 +242,22 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Helper: chama uma função do servidor GAS e devolve uma Promise.
+        // Login e gestão de usuários rodam no servidor; senhas não vêm ao navegador.
+        function gasCall(fn) {
+            const args = Array.prototype.slice.call(arguments, 1);
+            return new Promise((resolve, reject) => {
+                if (typeof google === 'undefined' || !google.script || !google.script.run) {
+                    return reject(new Error('Servidor indisponível. Abra o app publicado no Apps Script.'));
+                }
+                const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+                runner[fn].apply(runner, args);
+            });
+        }
+
+        function getToken() { return sessionStorage.getItem("sessToken") || ""; }
 
         let dataSelecionada = "";
         let mesVisualizacao = new Date();
@@ -313,18 +330,26 @@
             document.getElementById('publicCard').classList.remove('hidden');
         };
 
-        // LOGIN
+        // LOGIN (validado no servidor GAS — a senha não trafega para o navegador)
         document.getElementById('btnLogin').onclick = async () => {
             const userVal = document.getElementById('usernameLogin').value.trim();
             const passVal = document.getElementById('senhaLogin').value.trim();
             document.getElementById('loading').style.display = "flex";
-            const snap = await db.collection('users').where('username', '==', userVal).get();
-            document.getElementById('loading').style.display = "none";
-            if(!snap.empty && snap.docs[0].data().password === passVal) {
-                const u = snap.docs[0].data();
-                sessionStorage.setItem("loggedUser", JSON.stringify({ id: snap.docs[0].id, username: u.username, role: u.role, color: u.customColor || stringToColor(u.username) }));
-                checkLoginState();
-            } else { showToast("Usuário ou senha inválidos.", "error"); }
+            try {
+                const res = await gasCall('login', userVal, passVal);
+                if(res && res.ok) {
+                    sessionStorage.setItem("loggedUser", JSON.stringify(res.user));
+                    sessionStorage.setItem("sessToken", res.token);
+                    document.getElementById('senhaLogin').value = "";
+                    checkLoginState();
+                } else {
+                    showToast((res && res.message) || "Usuário ou senha inválidos.", "error");
+                }
+            } catch(e) {
+                showToast(e.message || "Falha ao conectar ao servidor.", "error");
+            } finally {
+                document.getElementById('loading').style.display = "none";
+            }
         };
 
         // RENDERIZAR CALENDÁRIO (Serve para o Público e para o Logado)
@@ -420,33 +445,37 @@
             });
         }
 
-        // CARREGAR DADOS DO ADMIN E MAPA DE CORES
-        function loadAdminData() {
-            db.collection('users').orderBy('username').onSnapshot(snap => {
-                const list = document.getElementById('adminListaUsers');
-                if(list) list.innerHTML = "";
-                userColorMap = {};
-                snap.forEach(doc => {
-                    const u = doc.data();
-                    const cor = u.customColor || stringToColor(u.username);
-                    userColorMap[u.username] = cor;
-                    if(list) {
-                        list.innerHTML += `
-                            <div class="admin-item">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <div class="color-preview" style="background:${cor}" onclick="openColorPicker('${doc.id}', '${cor}')"></div>
-                                    <b>${u.username}</b> <span style="font-size:0.7rem; color:#888;">(${u.role})</span>
-                                </div>
-                                <div>
-                                    <button class="btn-small btn-edit" onclick="editUser('${doc.id}', '${u.username}')">🔑</button>
-                                    <button class="btn-small btn-del" onclick="deleteUser('${doc.id}')">🗑️</button>
-                                </div>
-                            </div>`;
-                    }
+        // CARREGAR LISTA DE USUÁRIOS (do servidor GAS — somente admin)
+        async function loadUsersAdmin() {
+            const list = document.getElementById('adminListaUsers');
+            if(!list) return;
+            const u = JSON.parse(sessionStorage.getItem("loggedUser") || "null");
+            if(!u || u.role !== 'admin') { list.innerHTML = ""; return; }
+            list.innerHTML = "<p style='color:#888;'>Carregando...</p>";
+            try {
+                const users = await gasCall('listUsers', getToken());
+                list.innerHTML = "";
+                users.forEach(usr => {
+                    const cor = usr.color || stringToColor(usr.username);
+                    list.innerHTML += `
+                        <div class="admin-item">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <div class="color-preview" style="background:${cor}" onclick="openColorPicker('${usr.id}', '${cor}')"></div>
+                                <b>${usr.username}</b> <span style="font-size:0.7rem; color:#888;">(${usr.role})</span>
+                            </div>
+                            <div>
+                                <button class="btn-small btn-edit" onclick="editUser('${usr.id}', '${usr.username}')">🔑</button>
+                                <button class="btn-small btn-del" onclick="deleteUser('${usr.id}')">🗑️</button>
+                            </div>
+                        </div>`;
                 });
-                syncReservas(); // Atualiza as cores se mudarem
-            });
+            } catch(e) {
+                list.innerHTML = `<p style='color:#dc3545;'>${e.message || 'Erro ao carregar usuários.'}</p>`;
+            }
+        }
 
+        // CARREGAR LOCAIS (continuam no Firestore)
+        function loadPlaces() {
             db.collection('places').orderBy('name').onSnapshot(snap => {
                 const sel = document.getElementById('selectPlace');
                 const editSel = document.getElementById('editSelectPlace');
@@ -464,9 +493,18 @@
         }
 
         window.editPlace = async (id, old) => { const n = await customPrompt("Novo nome do local:", old); if(n && n !== old) await db.collection('places').doc(id).update({ name: n }); };
-        window.editUser = async (id, name) => { const p = await customPrompt(`Nova senha para ${name}:`, "", "password"); if(p) { await db.collection('users').doc(id).update({ password: p }); showToast("Senha alterada com sucesso!"); } };
+        window.editUser = async (id, name) => {
+            const p = await customPrompt(`Nova senha para ${name}:`, "", "password");
+            if(!p) return;
+            try { await gasCall('updateUserPassword', getToken(), id, p); showToast("Senha alterada com sucesso!"); }
+            catch(e) { showToast(e.message || "Erro ao alterar senha.", "error"); }
+        };
         window.deletePlace = async id => { if(await customConfirm("Tem certeza que deseja excluir este local?")) db.collection('places').doc(id).delete(); };
-        window.deleteUser = async id => { if(await customConfirm("Tem certeza que deseja excluir este usuário?")) db.collection('users').doc(id).delete(); };
+        window.deleteUser = async id => {
+            if(!(await customConfirm("Tem certeza que deseja excluir este usuário?"))) return;
+            try { await gasCall('deleteUser', getToken(), id); showToast("Usuário excluído."); loadUsersAdmin(); }
+            catch(e) { showToast(e.message || "Erro ao excluir usuário.", "error"); }
+        };
 
         window.openColorPicker = (id, current) => {
             const m = document.getElementById('modalColorBg');
@@ -479,8 +517,11 @@
                 p.appendChild(d);
             });
             document.getElementById('btnSaveColor').onclick = async () => {
-                await db.collection('users').doc(id).update({ customColor: document.getElementById('customColorPicker').value });
-                m.style.display = "none";
+                try {
+                    await gasCall('updateUserColor', getToken(), id, document.getElementById('customColorPicker').value);
+                    m.style.display = "none";
+                    loadUsersAdmin();
+                } catch(e) { showToast(e.message || "Erro ao salvar cor.", "error"); }
             };
         };
 
@@ -491,7 +532,15 @@
             const u = document.getElementById('addUserName').value.trim();
             const p = document.getElementById('addUserPassword').value.trim();
             const r = document.getElementById('addUserRole').value;
-            if(u && p) { await db.collection('users').add({ username: u, password: p, role: r, customColor: stringToColor(u) }); document.getElementById('modalUserBg').style.display = "none"; }
+            if(!u || !p) return showToast("Preencha nome e senha.", "warning");
+            try {
+                await gasCall('addUser', getToken(), u, p, r);
+                document.getElementById('addUserName').value = "";
+                document.getElementById('addUserPassword').value = "";
+                document.getElementById('modalUserBg').style.display = "none";
+                showToast("Usuário cadastrado.");
+                loadUsersAdmin();
+            } catch(e) { showToast(e.message || "Erro ao cadastrar usuário.", "error"); }
         };
         document.getElementById('btnAddPlace').onclick = () => { const n = document.getElementById('novoPlaceNome').value.trim(); if(n) db.collection('places').add({ name: n }); document.getElementById('novoPlaceNome').value = ""; };
 
@@ -580,7 +629,7 @@
             renderCalendar();
         }
 
-        document.getElementById('btnAdmin').onclick = () => { document.getElementById('reservasCard').classList.add('hidden'); document.getElementById('adminCard').classList.remove('hidden'); };
+        document.getElementById('btnAdmin').onclick = () => { document.getElementById('reservasCard').classList.add('hidden'); document.getElementById('adminCard').classList.remove('hidden'); loadUsersAdmin(); };
         document.getElementById('btnVoltarAdmin').onclick = () => { document.getElementById('adminCard').classList.add('hidden'); document.getElementById('reservasCard').classList.remove('hidden'); };
 
         // Navegação Calendário Logado
@@ -591,11 +640,24 @@
         document.getElementById('btnPrevPub').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()-1); renderCalendar(); };
         document.getElementById('btnNextPub').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()+1); renderCalendar(); };
 
-        document.getElementById('btnLogout').onclick = () => { sessionStorage.removeItem("loggedUser"); checkLoginState(); };
+        document.getElementById('btnLogout').onclick = () => {
+            const t = getToken();
+            if(t) gasCall('logout', t).catch(()=>{});
+            sessionStorage.removeItem("loggedUser");
+            sessionStorage.removeItem("sessToken");
+            checkLoginState();
+        };
 
         // Inicialização
-        loadAdminData(); // Carrega os dados para o mapa de cores e selects
-        checkLoginState();
+        // Autenticação anônima do Firebase: necessária para as regras do
+        // Firestore (locais e reservas). Login de usuário é separado (servidor GAS).
+        auth.signInAnonymously()
+            .then(() => { loadPlaces(); checkLoginState(); })
+            .catch(err => {
+                console.error("Falha na autenticação anônima:", err);
+                showToast("Não foi possível conectar ao servidor de dados.", "error");
+                loadPlaces(); checkLoginState();
+            });
     </script>
 </body>
 </html>
