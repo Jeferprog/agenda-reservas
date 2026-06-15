@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
  <head>
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff6600">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -369,6 +368,10 @@ import {
   query, where, getDocs, limit
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+import {
+  getAuth, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBgYWUTMu6BgTh8kZC1zOb6v910lk_fCK8",
   authDomain: "minhaagenda-5fc2d.firebaseapp.com",
@@ -380,6 +383,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+/* Autenticação anônima: garante que só o app (autenticado) acesse o banco.
+   As regras do Firestore (firestore.rules) exigem request.auth != null.
+   É preciso habilitar o provedor "Anônimo" no console do Firebase. */
+const authReady = signInAnonymously(auth).catch(err => {
+  console.error("Falha na autenticação anônima:", err);
+  alert("Não foi possível conectar ao servidor. Verifique a conexão e tente novamente.");
+});
 
 
 /* ============================================================
@@ -425,10 +437,26 @@ const adminUserList = document.getElementById("adminUserList");
    🎨 CORES POR USUÁRIO
 ============================================================ */
 const userColors = [
-  '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
-  '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#52B788',
-  '#E63946', '#A8DADC', '#F4A261', '#2A9D8F', '#E76F51',
-  '#264653', '#E9C46A', '#F77F00', '#06D6A0', '#118AB2'
+  '#E63946', // vermelho vivo
+  '#F3722C', // laranja
+  '#FB8500', // laranja-ouro
+  '#E85D04', // abóbora intenso
+  '#2A9D8F', // verde-azulado
+  '#06A77D', // esmeralda
+  '#2D9D3A', // verde folha
+  '#43AA8B', // verde menta
+  '#00B4D8', // ciano vivo
+  '#0077B6', // azul oceano
+  '#3A86FF', // azul vivo
+  '#4361EE', // índigo
+  '#7209B7', // roxo
+  '#9D4EDD', // lilás
+  '#B5179E', // magenta
+  '#C9184A', // framboesa
+  '#D90429', // carmim
+  '#FF6D00', // laranja intenso
+  '#5A189A', // roxo profundo
+  '#1982C4'  // azul céu
 ];
 
 // Função para gerar cor consistente baseada no username
@@ -474,6 +502,7 @@ btnLogin.onclick = login;
 async function login(){
   try {
     loginError.style.display="none";
+    await authReady; // garante autenticação anônima antes de consultar o banco
 
     const user = usernameLogin.value.trim();
     const pass = senhaLogin.value.trim();
@@ -1146,27 +1175,12 @@ btnCriarReserva.onclick = async () => {
    🚀 INICIALIZAÇÃO
 ================================================ */
 (async function init(){
+  await authReady; // garante autenticação anônima antes de qualquer acesso ao banco
   const user = sessionStorage.getItem("loggedUser");
   if (user) {
     loadUIAfterLogin();
   }
 })();
-
-// ===============================
-// 📦 REGISTRO DO SERVICE WORKER
-// ===============================
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./service-worker.js")
-      .then(reg => {
-        console.log("✅ Service Worker registrado:", reg.scope);
-      })
-      .catch(err => {
-        console.error("❌ Falha ao registrar Service Worker:", err);
-      });
-  });
-}
 
 </script>
  </body>

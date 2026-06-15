@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// ============================================================================
+// Regras de segurança do Firestore — Agenda de Visitas (Cresol Cooperar)
+//
+// IMPORTANTE: estas regras EXIGEM autenticação (request.auth != null).
+// O app faz login anônimo (signInAnonymously) no carregamento, então:
+//   1) Habilite o provedor "Anônimo" em:
+//      Firebase Console > Authentication > Sign-in method > Anônimo > Ativar
+//   2) Só publique estas regras DEPOIS de implantar a versão do app que faz
+//      login anônimo (já incluída no HTML). Caso contrário o app para de
+//      funcionar.
+//
+// Observação: o papel admin/user continua sendo verificado no cliente, pois
+// o login anônimo não carrega esse dado no token. Estas regras impedem acesso
+// direto ao banco por quem não passa pelo app, e validam o formato dos dados.
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Requisição autenticada (login anônimo do app)
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---- Usuários ----
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.username is string
+        && request.resource.data.username.size() > 0
+        && request.resource.data.username.size() <= 100
+        && request.resource.data.password is string
+        && request.resource.data.role in ['admin', 'user'];
+      allow delete: if signedIn();
+    }
+
+    // ---- Locais / Agências ----
+    match /places/{placeId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 200;
+      allow delete: if signedIn();
+    }
+
+    // ---- Reservas / Visitas ----
+    match /reservations/{reservationId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.date is string
+        && request.resource.data.placeId is string
+        && request.resource.data.username is string;
+      allow update, delete: if signedIn();
+    }
+
+    // Bloqueia qualquer outra coleção não prevista acima
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
