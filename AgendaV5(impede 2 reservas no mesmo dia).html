@@ -368,6 +368,10 @@ import {
   query, where, getDocs, limit
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+import {
+  getAuth, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBgYWUTMu6BgTh8kZC1zOb6v910lk_fCK8",
   authDomain: "minhaagenda-5fc2d.firebaseapp.com",
@@ -379,6 +383,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+/* Autenticação anônima: garante que só o app (autenticado) acesse o banco.
+   As regras do Firestore (firestore.rules) exigem request.auth != null.
+   É preciso habilitar o provedor "Anônimo" no console do Firebase. */
+const authReady = signInAnonymously(auth).catch(err => {
+  console.error("Falha na autenticação anônima:", err);
+  alert("Não foi possível conectar ao servidor. Verifique a conexão e tente novamente.");
+});
 
 
 /* ============================================================
@@ -489,6 +502,7 @@ btnLogin.onclick = login;
 async function login(){
   try {
     loginError.style.display="none";
+    await authReady; // garante autenticação anônima antes de consultar o banco
 
     const user = usernameLogin.value.trim();
     const pass = senhaLogin.value.trim();
@@ -1161,6 +1175,7 @@ btnCriarReserva.onclick = async () => {
    🚀 INICIALIZAÇÃO
 ================================================ */
 (async function init(){
+  await authReady; // garante autenticação anônima antes de qualquer acesso ao banco
   const user = sessionStorage.getItem("loggedUser");
   if (user) {
     loadUIAfterLogin();
