@@ -47,10 +47,26 @@ real e visão pública).
      (que faz login anônimo), senão o calendário para de carregar.
 
 ### 5. Migração e limpeza (importante)
-1. Mova os usuários que existiam na coleção `users` do Firestore para a
-   planilha (colunas acima).
-2. **Exclua a coleção `users` do Firestore** — ela contém senhas em texto puro.
+1. **Migre os usuários** que existiam na coleção `users` do Firestore para a
+   planilha usando o script pronto `gas/Migracao.gs`:
+   - Cole `gas/Migracao.gs` no mesmo projeto Apps Script.
+   - Garanta os escopos OAuth do manifesto (ver abaixo).
+   - No editor, selecione a função **`migrarUsuariosDoFirestore`** e clique
+     em ▶ **Executar**. Autorize quando solicitado.
+   - O resultado aparece em **Registros de execução** (ex.: "X adicionados,
+     Y já existiam"). O script ignora duplicados e mapeia `customColor → color`
+     e o campo legado `name → username`.
+2. Confira a planilha e ajuste papéis (`admin`/`user`) se necessário.
+3. **Exclua a coleção `users` do Firestore** — ela contém senhas em texto puro.
    As regras já bloqueiam o acesso a ela, mas o dado deve ser removido.
+
+> **Escopos do manifesto:** a leitura do Firestore via REST exige o escopo
+> `datastore`, que o Apps Script não adiciona automaticamente. Em
+> **Configurações do projeto**, marque "Mostrar arquivo de manifesto
+> `appsscript.json`" e garanta os escopos do exemplo em `gas/appsscript.json`
+> (`spreadsheets`, `script.external_request`, `datastore`). O exemplo usa
+> `"access": "DOMAIN"` (acesso restrito à organização) e
+> `"executeAs": "USER_DEPLOYING"`.
 
 ---
 
