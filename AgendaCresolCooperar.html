@@ -445,6 +445,17 @@
             });
         }
 
+        // CARREGAR MAPA DE CORES (público — username -> cor atual, sem senhas)
+        async function loadColorMap() {
+            try {
+                const arr = await gasCall('getColorMap');
+                userColorMap = {};
+                arr.forEach(x => { userColorMap[x.username] = x.color; });
+            } catch(e) {
+                console.warn("Não foi possível carregar o mapa de cores:", e.message);
+            }
+        }
+
         // CARREGAR LISTA DE USUÁRIOS (do servidor GAS — somente admin)
         async function loadUsersAdmin() {
             const list = document.getElementById('adminListaUsers');
@@ -520,6 +531,8 @@
                 try {
                     await gasCall('updateUserColor', getToken(), id, document.getElementById('customColorPicker').value);
                     m.style.display = "none";
+                    await loadColorMap();
+                    renderCalendar();
                     loadUsersAdmin();
                 } catch(e) { showToast(e.message || "Erro ao salvar cor.", "error"); }
             };
@@ -652,11 +665,11 @@
         // Autenticação anônima do Firebase: necessária para as regras do
         // Firestore (locais e reservas). Login de usuário é separado (servidor GAS).
         auth.signInAnonymously()
-            .then(() => { loadPlaces(); checkLoginState(); })
-            .catch(err => {
+            .then(async () => { await loadColorMap(); loadPlaces(); checkLoginState(); })
+            .catch(async err => {
                 console.error("Falha na autenticação anônima:", err);
                 showToast("Não foi possível conectar ao servidor de dados.", "error");
-                loadPlaces(); checkLoginState();
+                await loadColorMap(); loadPlaces(); checkLoginState();
             });
     </script>
 </body>

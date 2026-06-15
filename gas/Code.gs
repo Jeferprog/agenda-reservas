@@ -113,6 +113,16 @@ function logout(token) {
   return { ok: true };
 }
 
+/**
+ * Mapa público de cores (username -> color), SEM senhas.
+ * Usado pelo calendário (inclusive a visão pública) para exibir a cor
+ * atual de cada usuário. Os nomes já aparecem nas reservas do calendário,
+ * então isto não expõe nenhum dado novo.
+ */
+function getColorMap() {
+  return readUsers_().map(u => ({ username: u.username, color: u.color }));
+}
+
 /** Lista usuários (sem senha) — somente admin. */
 function listUsers(token) {
   requireAdmin_(token);
