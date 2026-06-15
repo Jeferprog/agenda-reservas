@@ -11,225 +11,337 @@
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.10.0/firebase-auth-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind + Fontes (Roboto + ícones) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#005c46',
+              'primary-dark': '#00402f',
+              'on-primary': '#ffffff',
+              'primary-container': '#b9f0d8',
+              'on-primary-container': '#00382a',
+              secondary: '#f58220',
+              'on-secondary': '#ffffff',
+              'secondary-container': '#ffe0c2',
+              'on-secondary-container': '#5a2c00',
+              background: '#f6f9ff',
+              surface: '#f6f9ff',
+              'surface-card': '#ffffff',
+              'surface-container': '#eef2f7',
+              'surface-container-high': '#e3e9f1',
+              'on-surface': '#1a1c1e',
+              'on-surface-variant': '#44474a',
+              'outline-variant': '#c4c7c8',
+              error: '#ba1a1a',
+              'error-container': '#ffdad6',
+            },
+            fontFamily: { sans: ['Roboto', 'sans-serif'] },
+            borderRadius: { xl: '12px' },
+          }
+        }
+      }
+    </script>
 
     <style>
-        :root {
-            --primary-green: #005c46;
-            --accent-orange: #f58220;
-            --bg-body: #f8f9fa;
-            --border-radius: 8px;
-            --text-gray: #6c757d;
-        }
+        :root { --primary:#005c46; --accent:#f58220; }
+        body { font-family:'Roboto',sans-serif; }
+        .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; }
 
-        * { box-sizing: border-box; font-family: 'Roboto', sans-serif; }
-        body { background-color: var(--bg-body); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        .hidden { display: none !important; }
+        /* Loading */
+        #loading { position:fixed; inset:0; background:rgba(246,249,255,0.85); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:9999; gap:14px; }
+        .spinner { border:5px solid #e3e9f1; border-top:5px solid var(--accent); border-radius:50%; width:48px; height:48px; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
 
-        header { text-align: center; margin-bottom: 20px; width: 100%; }
-        header h1 { color: var(--primary-green); text-transform: uppercase; font-weight: 700; margin: 5px 0; font-size: 1.6rem; }
-        .badge { background-color: var(--accent-orange); color: white; padding: 4px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; display: inline-block; }
+        /* Modais (abertos via style.display='flex' no JS) */
+        .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000; padding:16px; backdrop-filter:blur(4px); }
 
-        .card { background: white; border-radius: var(--border-radius); box-shadow: 0 4px 12px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; border-left: 6px solid var(--accent-orange); width: 100%; }
-        .card-verde { border-left-color: var(--primary-green); }
-        .card-app { max-width: 1250px; }
+        /* Calendário (estrutura gerada pelo JS) */
+        .cal-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:4px; }
+        .cal-table th { color:#44474a; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:6px 0; }
+        .cal-table td { height:116px; vertical-align:top; border:1px solid rgba(196,199,200,.45); border-radius:8px; padding:6px; background:#fff; transition:border-color .15s, box-shadow .15s; cursor:pointer; }
+        .cal-table td:hover { border-color:rgba(0,92,70,.45); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+        .cal-day-num { font-size:12px; font-weight:700; color:#44474a; }
+        .reserva-container { display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:80px; overflow-y:auto; }
+        .reserva-tag { font-size:10px; font-weight:700; color:#fff; padding:3px 6px; border-radius:6px; line-height:1.25; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.18); }
+        .reserva-tag:hover { filter:brightness(1.08); }
 
-        .cal-table { width: 100%; table-layout: fixed; border-collapse: collapse; background: #fff; }
-        .cal-table th { background: #eee; padding: 10px; border: 1px solid #ddd; font-size: 0.8rem; }
-        .cal-table td { height: 135px; border: 1px solid #ddd; vertical-align: top; padding: 5px; cursor: pointer; }
-        .cal-day-num { font-weight: bold; color: #777; font-size: 0.85rem; }
-        .reserva-tag { font-size: 0.65rem; padding: 4px; border-radius: 4px; margin-top: 3px; color: white; font-weight: bold; line-height: 1.2; word-wrap: break-word; display: block; box-shadow: 1px 1px 3px rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.1s; }
-        .reserva-tag:hover { transform: scale(1.02); filter: brightness(1.1); }
+        /* Listas de administração (geradas pelo JS) */
+        .admin-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; background:#fff; border:1px solid rgba(196,199,200,.55); border-radius:10px; margin-bottom:8px; }
+        .color-preview { width:24px; height:24px; border-radius:6px; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.12); cursor:pointer; flex:0 0 auto; }
+        .btn-small { border:0; cursor:pointer; color:#fff; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; margin-left:6px; }
+        .btn-edit { background:var(--primary); }
+        .btn-del  { background:#ba1a1a; }
 
-        .btn-primary { background-color: var(--accent-orange); color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 700; width: 100%; text-transform: uppercase; }
-        .btn-outline { background: transparent; border: 1px solid #ccc; padding: 8px 15px; border-radius: 6px; cursor: pointer; color: var(--text-gray); font-weight: bold;}
-        .btn-small { padding: 4px 8px; font-size: 0.7rem; border-radius: 4px; border: none; cursor: pointer; color: white; margin-left: 4px; }
-        .btn-edit { background: var(--primary-green); }
-        .btn-del { background: #dc3545; }
+        /* Toasts */
+        #toast-container { position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:10px; }
+        .toast { background:#fff; border-left:5px solid var(--primary); box-shadow:0 8px 24px rgba(0,0,0,.15); padding:14px 18px; border-radius:10px; display:flex; align-items:center; gap:10px; transform:translateX(120%); transition:transform .3s ease-out; min-width:240px; font-weight:600; color:#1a1c1e; }
+        .toast.show { transform:translateX(0); }
+        .toast.error { border-left-color:#ba1a1a; }
+        .toast.warning { border-left-color:var(--accent); }
+        .toast-icon { font-size:18px; }
 
-        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } }
-        .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fdfdfd; border: 1px solid #eee; border-radius: 6px; margin-bottom: 8px; }
-        .color-preview { width: 22px; height: 22px; border-radius: 4px; border: 2px solid white; box-shadow: 0 0 3px rgba(0,0,0,0.3); cursor: pointer; }
-
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9rem; }
-        select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
-
-        .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px); }
-
-        /* Toast Notifications */
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
-        .toast { background: white; border-left: 5px solid var(--primary-green); box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 15px 20px; border-radius: 6px; display: flex; align-items: center; gap: 10px; transform: translateX(120%); transition: transform 0.3s ease-out; min-width: 250px; font-weight: 500; color: #333; }
-        .toast.show { transform: translateX(0); }
-        .toast.error { border-left-color: #dc3545; }
-        .toast.warning { border-left-color: var(--accent-orange); }
-        .toast-icon { font-size: 1.2rem; }
-
-        #loading { position: fixed; inset: 0; background: rgba(255,255,255,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
-        .spinner { border: 5px solid #f3f3f3; border-top: 5px solid var(--accent-orange); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Inputs / selects padronizados */
+        .field { width:100%; padding:11px 12px; border:1px solid #c4c7c8; border-radius:10px; background:#fff; font-size:14px; outline:none; transition:border-color .15s, box-shadow .15s; }
+        .field:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(0,92,70,.15); }
     </style>
 </head>
-<body>
+<body class="bg-background text-on-surface min-h-screen pb-10">
 
-    <div id="loading"><div class="spinner"></div><p style="margin-top:15px; color:var(--primary-green); font-weight:bold;">Aguarde...</p></div>
+    <div id="loading"><div class="spinner"></div><p class="text-primary font-bold">Aguarde...</p></div>
 
-    <header>
-        <span class="badge">SISTEMA CRESOL COOPERAR</span>
-        <h1>Agenda de Visitas</h1>
+    <!-- HEADER GLOBAL -->
+    <header class="bg-surface-card shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+                <span class="material-symbols-outlined">calendar_month</span>
+            </div>
+            <div class="leading-tight">
+                <h1 class="text-primary font-black text-lg md:text-xl uppercase tracking-tight">Agenda de Visitas</h1>
+                <p class="text-[11px] text-on-surface-variant font-medium">Cresol Cooperar</p>
+            </div>
+        </div>
     </header>
 
-    <!-- TELA INICIAL: VISUALIZADOR (PÚBLICA) -->
-    <section id="publicCard" class="card card-app">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin:0; color:var(--primary-green)">Visão Geral da Agenda</h3>
-            <button id="btnGoToLogin" class="btn-outline" style="border-color: var(--primary-green); color: var(--primary-green);">Acesso Restrito</button>
-        </div>
-        <div class="card card-verde" style="padding:15px; margin-bottom: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <button class="btn-outline" id="btnPrevPub">◀</button>
-                <h3 id="mesAnoAtualPub" style="margin:0;"></h3>
-                <button class="btn-outline" id="btnNextPub">▶</button>
-            </div>
-            <table class="cal-table">
-                <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
-                <tbody id="calBodyPub"></tbody>
-            </table>
-        </div>
-    </section>
+    <main class="max-w-7xl mx-auto px-4 py-6">
 
-    <!-- TELA DE LOGIN -->
-    <section id="authCard" class="card hidden" style="max-width: 400px;">
-        <h2 style="text-align: center; color: var(--primary-green);">🔐 Login</h2>
-        <div class="form-group"><label>Usuário:</label><input type="text" id="usernameLogin"></div>
-        <div class="form-group"><label>Senha:</label><input type="password" id="senhaLogin"></div>
-        <button class="btn-primary" id="btnLogin" style="margin-bottom: 10px;">Acessar</button>
-        <button class="btn-outline" id="btnBackToPub" style="width: 100%;">Voltar para Agenda</button>
-    </section>
-
-    <!-- TELA DO USUÁRIO LOGADO (AGENDAR) -->
-    <section id="reservasCard" class="card card-app hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 id="boasVindas" style="margin:0; color:var(--primary-green)"></h3>
-            <div style="display:flex; gap:10px;">
-                <button id="btnAdmin" class="btn-outline hidden">⚙ Administração</button>
-                <button id="btnLogout" class="btn-outline">Sair</button>
-            </div>
+    <!-- ===================== TELA PÚBLICA ===================== -->
+    <section id="publicCard">
+        <div class="flex flex-col items-center text-center gap-2 mb-6">
+            <span class="bg-primary-container text-on-primary-container px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase inline-flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Sistema Cresol Cooperar
+            </span>
+            <h2 class="text-2xl md:text-3xl font-bold text-primary">Visão Geral da Agenda</h2>
+            <p class="text-on-surface-variant max-w-lg">Consulte a disponibilidade de espaços e agendamentos institucionais.</p>
+            <button id="btnGoToLogin" class="mt-2 bg-primary text-on-primary flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-primary-dark active:scale-95 transition-all">
+                <span class="material-symbols-outlined">lock</span> Acesso Restrito
+            </button>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 380px; gap: 20px;">
-            <div class="card card-verde" style="padding:15px; margin-bottom: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <button class="btn-outline" id="btnPrev">◀</button>
-                    <h3 id="mesAnoAtual" style="margin:0;"></h3>
-                    <button class="btn-outline" id="btnNext">▶</button>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Calendário público -->
+            <div class="lg:col-span-9 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-outline-variant/30 bg-surface">
+                    <h3 id="mesAnoAtualPub" class="text-primary font-bold text-lg"></h3>
+                    <div class="flex gap-2">
+                        <button id="btnPrevPub" class="p-2 rounded-full hover:bg-surface-container-high active:scale-90 transition"><span class="material-symbols-outlined">chevron_left</span></button>
+                        <button id="btnNextPub" class="p-2 rounded-full hover:bg-surface-container-high active:scale-90 transition"><span class="material-symbols-outlined">chevron_right</span></button>
+                    </div>
                 </div>
-                <table class="cal-table">
-                    <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
-                    <tbody id="calBody"></tbody>
-                </table>
+                <div class="p-3 overflow-x-auto">
+                    <table class="cal-table">
+                        <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
+                        <tbody id="calBodyPub"></tbody>
+                    </table>
+                </div>
             </div>
-            <div class="card" style="padding:15px; margin-bottom: 0;">
-                <h3 style="color:var(--primary-green)">➕ Agendar</h3>
-                <p id="labelData" style="font-weight:bold; color:var(--accent-orange); font-size:0.8rem;">Selecione um dia no calendário</p>
-                <div class="form-group"><label>Local:</label><select id="selectPlace"></select></div>
-                <div class="form-group">
-                    <label>Período:</label>
-                    <select id="selectPeriodo">
+            <!-- Card lateral informativo -->
+            <div class="lg:col-span-3 flex flex-col gap-6">
+                <div class="bg-surface-card p-5 rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30">
+                    <h3 class="text-primary font-bold mb-3 flex items-center gap-2"><span class="material-symbols-outlined">info</span> Como funciona</h3>
+                    <p class="text-sm text-on-surface-variant">Cada colaborador possui uma cor própria. As reservas aparecem como etiquetas coloridas no dia correspondente.</p>
+                </div>
+                <div class="bg-primary text-on-primary p-5 rounded-xl shadow-md">
+                    <h4 class="font-bold text-lg">Precisa de um espaço?</h4>
+                    <p class="text-on-primary/80 text-sm mt-1">Colaboradores podem reservar pelo acesso restrito.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== TELA DE LOGIN ===================== -->
+    <section id="authCard" class="hidden max-w-md mx-auto">
+        <div class="bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] overflow-hidden">
+            <div style="height:4px;background:linear-gradient(90deg,#005c46 0%,#f58220 100%);"></div>
+            <div class="p-7">
+                <h2 class="text-xl font-bold text-on-surface text-center">Login</h2>
+                <p class="text-sm text-on-surface-variant text-center mt-1 mb-6">Acesse para gerenciar seus agendamentos.</p>
+
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Usuário</label>
+                <input id="usernameLogin" type="text" class="field mb-4" placeholder="Seu usuário">
+
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Senha</label>
+                <input id="senhaLogin" type="password" class="field mb-6" placeholder="••••••••">
+
+                <button id="btnLogin" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl shadow-sm hover:bg-primary-dark active:scale-[0.98] transition-all">Acessar</button>
+                <button id="btnBackToPub" class="w-full mt-3 border border-primary text-primary font-bold py-3 rounded-xl hover:bg-surface-container-high active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">arrow_back</span> Voltar para Agenda
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== TELA LOGADO (AGENDAR) ===================== -->
+    <section id="reservasCard" class="hidden">
+        <div class="flex items-center justify-between mb-5">
+            <h3 id="boasVindas" class="text-primary font-bold text-xl"></h3>
+            <div class="flex gap-2">
+                <button id="btnAdmin" class="hidden border border-primary text-primary font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2"><span class="material-symbols-outlined">settings</span> Administração</button>
+                <button id="btnLogout" class="border border-outline-variant text-on-surface-variant font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2"><span class="material-symbols-outlined">logout</span> Sair</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Calendário -->
+            <div class="lg:col-span-8 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
+                <div class="flex items-center justify-between p-4 border-b border-outline-variant/30 bg-surface">
+                    <h3 id="mesAnoAtual" class="text-primary font-bold text-lg"></h3>
+                    <div class="flex gap-2">
+                        <button id="btnPrev" class="p-2 rounded-full hover:bg-surface-container-high active:scale-90 transition"><span class="material-symbols-outlined">chevron_left</span></button>
+                        <button id="btnNext" class="p-2 rounded-full hover:bg-surface-container-high active:scale-90 transition"><span class="material-symbols-outlined">chevron_right</span></button>
+                    </div>
+                </div>
+                <div class="p-3 overflow-x-auto">
+                    <table class="cal-table">
+                        <thead><tr><th>D</th><th>S</th><th>T</th><th>Q</th><th>Q</th><th>S</th><th>S</th></tr></thead>
+                        <tbody id="calBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Formulário de agendamento -->
+            <div class="lg:col-span-4">
+                <div class="bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 p-5 lg:sticky lg:top-24">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-11 h-11 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center"><span class="material-symbols-outlined">add_circle</span></div>
+                        <h3 class="text-primary font-bold text-lg">Novo Agendamento</h3>
+                    </div>
+                    <p id="labelData" class="text-sm font-bold text-secondary mb-4">Selecione um dia no calendário</p>
+
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Local</label>
+                    <select id="selectPlace" class="field mb-4"></select>
+
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Período</label>
+                    <select id="selectPeriodo" class="field mb-5">
                         <option value="Dia todo">Dia todo</option>
                         <option value="Manhã">Manhã</option>
                         <option value="Tarde">Tarde</option>
                     </select>
+
+                    <button id="btnAgendar" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl shadow-md hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">check_circle</span> Confirmar Reserva
+                    </button>
                 </div>
-                <button class="btn-primary" id="btnAgendar">Confirmar Reserva</button>
             </div>
         </div>
     </section>
 
-    <!-- TELA DE ADMINISTRAÇÃO -->
-    <section id="adminCard" class="card card-app hidden">
-        <h2 style="color:var(--primary-green)">⚙ Manutenção</h2>
-        <div class="admin-grid">
-            <div>
-                <h3>📍 Locais</h3>
-                <div style="display:flex; gap:5px; margin-bottom:15px;"><input type="text" id="novoPlaceNome" placeholder="Nova Unidade"><button class="btn-primary" id="btnAddPlace" style="width:70px;">+</button></div>
+    <!-- ===================== TELA DE ADMINISTRAÇÃO ===================== -->
+    <section id="adminCard" class="hidden">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-primary font-bold text-xl flex items-center gap-2"><span class="material-symbols-outlined">build</span> Manutenção do Sistema</h2>
+            <button id="btnVoltarAdmin" class="border border-outline-variant text-on-surface-variant font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2"><span class="material-symbols-outlined">chevron_left</span> Voltar</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Locais -->
+            <section class="lg:col-span-7 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border-l-4 border-primary p-5">
+                <h3 class="text-on-surface font-bold text-lg mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">domain</span> Locais</h3>
+                <div class="flex gap-2 mb-5">
+                    <input id="novoPlaceNome" type="text" class="field" placeholder="Nome do novo local...">
+                    <button id="btnAddPlace" class="bg-primary text-on-primary px-5 rounded-xl font-bold active:scale-95 transition-all whitespace-nowrap">Adicionar</button>
+                </div>
                 <div id="adminListaPlaces"></div>
-            </div>
-            <div>
-                <div style="display:flex; justify-content:space-between; align-items:center;"><h3>👥 Colaboradores</h3><button class="btn-outline" id="btnOpenAddUser">+ Novo</button></div>
+            </section>
+
+            <!-- Colaboradores -->
+            <section class="lg:col-span-5 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border-l-4 border-secondary p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-on-surface font-bold text-lg flex items-center gap-2"><span class="material-symbols-outlined text-secondary">group</span> Colaboradores</h3>
+                    <button id="btnOpenAddUser" class="bg-secondary text-on-secondary px-4 py-2 rounded-full font-bold text-xs active:scale-95 transition-all flex items-center gap-1"><span class="material-symbols-outlined text-base">person_add</span> Novo</button>
+                </div>
                 <div id="adminListaUsers"></div>
-            </div>
+            </section>
         </div>
-        <button class="btn-outline" id="btnVoltarAdmin" style="margin-top:20px;">Voltar</button>
     </section>
 
+    </main>
+
+    <!-- ===================== MODAIS ===================== -->
     <div id="modalUserBg" class="modal-bg">
-        <div class="card" style="max-width: 400px; border-left:10px solid var(--accent-orange);">
-            <h3>Cadastrar Usuário</h3>
-            <div class="form-group"><label>Nome:</label><input type="text" id="addUserName"></div>
-            <div class="form-group"><label>Senha:</label><input type="password" id="addUserPassword"></div>
-            <div class="form-group"><label>Cargo:</label><select id="addUserRole"><option value="user">Colaborador</option><option value="admin">Administrador</option></select></div>
-            <div style="display:flex; gap:10px;"><button class="btn-primary" id="btnSalvarUser">Salvar</button><button class="btn-outline" id="btnFecharUser">Fechar</button></div>
+        <div class="bg-surface-card w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-secondary text-on-secondary px-5 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Cadastrar Usuário</h3>
+                <button id="btnFecharUser" class="hover:bg-white/20 rounded-full p-1"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="p-5">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Nome</label>
+                <input id="addUserName" type="text" class="field mb-4" placeholder="Nome do usuário">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Senha</label>
+                <input id="addUserPassword" type="password" class="field mb-4" placeholder="Senha">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Cargo</label>
+                <select id="addUserRole" class="field mb-5">
+                    <option value="user">Colaborador</option>
+                    <option value="admin">Administrador</option>
+                </select>
+                <button id="btnSalvarUser" class="w-full bg-secondary text-on-secondary font-bold py-3 rounded-xl shadow-md active:scale-[0.98] transition-all">Salvar</button>
+            </div>
         </div>
     </div>
 
     <div id="modalColorBg" class="modal-bg">
-        <div class="card" style="max-width: 400px;">
-            <h3>🎨 Escolher Cor</h3>
-            <div id="colorPalette" style="display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:20px 0;"></div>
-            <input type="color" id="customColorPicker" style="width:100%; height:40px; cursor:pointer;">
-            <div style="display:flex; gap:10px; margin-top:20px;"><button class="btn-primary" id="btnSaveColor">Salvar</button><button class="btn-outline" id="btnCancelColor">Cancelar</button></div>
+        <div class="bg-surface-card w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <h3 class="font-bold text-lg text-primary mb-4 flex items-center gap-2"><span class="material-symbols-outlined">palette</span> Escolher Cor</h3>
+            <div id="colorPalette" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;"></div>
+            <input id="customColorPicker" type="color" style="width:100%;height:44px;border:1px solid #c4c7c8;border-radius:10px;cursor:pointer;">
+            <div class="flex gap-3 mt-5">
+                <button id="btnSaveColor" class="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Salvar</button>
+                <button id="btnCancelColor" class="flex-1 border border-outline-variant text-on-surface-variant font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Cancelar</button>
+            </div>
         </div>
     </div>
 
     <div id="modalEditReservaBg" class="modal-bg">
-        <div class="card" style="max-width: 400px; border-left:10px solid var(--accent-orange);">
-            <h3>Editar Reserva</h3>
-            <p id="editReservaInfo" style="font-size: 0.85rem; color: #666; margin-bottom: 15px;"></p>
-            <div class="form-group"><label>Local:</label><select id="editSelectPlace"></select></div>
-            <div class="form-group">
-                <label>Período:</label>
-                <select id="editSelectPeriodo">
+        <div class="bg-surface-card w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-primary text-on-primary px-5 py-4"><h3 class="font-bold text-lg">Editar Reserva</h3></div>
+            <div class="p-5">
+                <p id="editReservaInfo" class="text-sm text-on-surface-variant mb-4"></p>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Local</label>
+                <select id="editSelectPlace" class="field mb-4"></select>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Período</label>
+                <select id="editSelectPeriodo" class="field mb-5">
                     <option value="Dia todo">Dia todo</option>
                     <option value="Manhã">Manhã</option>
                     <option value="Tarde">Tarde</option>
                 </select>
-            </div>
-            <div style="display:flex; gap:10px; flex-wrap: wrap;">
-                <button class="btn-primary" id="btnSalvarReserva" style="flex: 1;">Salvar</button>
-                <button class="btn-primary btn-del" id="btnExcluirReserva" style="flex: 1;">Excluir</button>
-                <button class="btn-outline" id="btnFecharEditReserva" style="width: 100%;">Cancelar</button>
+                <div class="flex flex-wrap gap-3">
+                    <button id="btnSalvarReserva" class="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Salvar</button>
+                    <button id="btnExcluirReserva" class="flex-1 bg-error text-white font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Excluir</button>
+                    <button id="btnFecharEditReserva" class="w-full border border-outline-variant text-on-surface-variant font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Cancelar</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- TOAST CONTAINER -->
-    <div id="toast-container"></div>
-
-    <!-- CUSTOM CONFIRM -->
     <div id="customConfirmBg" class="modal-bg">
-        <div class="card" style="max-width: 350px; text-align: center; padding: 30px 20px;">
-            <h3 style="margin-top:0; color: var(--primary-green); font-size: 1.4rem;">Confirmação</h3>
-            <p id="customConfirmMessage" style="margin-bottom: 25px; font-size: 1.1rem; color: #444;"></p>
-            <div style="display:flex; gap:10px; justify-content: center;">
-                <button class="btn-primary" id="btnConfirmYes" style="flex: 1;">Sim</button>
-                <button class="btn-outline" id="btnConfirmNo" style="flex: 1;">Não</button>
+        <div class="bg-surface-card w-full max-w-sm rounded-2xl p-7 text-center shadow-2xl">
+            <h3 class="text-primary font-bold text-xl mb-3">Confirmação</h3>
+            <p id="customConfirmMessage" class="text-on-surface mb-6"></p>
+            <div class="flex gap-3">
+                <button id="btnConfirmYes" class="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Sim</button>
+                <button id="btnConfirmNo" class="flex-1 border border-outline-variant text-on-surface-variant font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Não</button>
             </div>
         </div>
     </div>
 
-    <!-- CUSTOM PROMPT -->
     <div id="customPromptBg" class="modal-bg">
-        <div class="card" style="max-width: 350px; text-align: center; padding: 30px 20px;">
-            <h3 style="margin-top:0; color: var(--primary-green); font-size: 1.4rem;">Entrada de Dados</h3>
-            <p id="customPromptMessage" style="margin-bottom: 15px; font-size: 1rem; color: #444;"></p>
-            <input type="text" id="customPromptInput" style="margin-bottom: 20px; text-align: center; font-size: 1.1rem;">
-            <div style="display:flex; gap:10px; justify-content: center;">
-                <button class="btn-primary" id="btnPromptOk" style="flex: 1;">OK</button>
-                <button class="btn-outline" id="btnPromptCancel" style="flex: 1;">Cancelar</button>
+        <div class="bg-surface-card w-full max-w-sm rounded-2xl p-7 text-center shadow-2xl">
+            <h3 class="text-primary font-bold text-xl mb-3">Entrada de Dados</h3>
+            <p id="customPromptMessage" class="text-on-surface mb-3"></p>
+            <input id="customPromptInput" type="text" class="field text-center mb-5">
+            <div class="flex gap-3">
+                <button id="btnPromptOk" class="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl active:scale-[0.98] transition-all">OK</button>
+                <button id="btnPromptCancel" class="flex-1 border border-outline-variant text-on-surface-variant font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Cancelar</button>
             </div>
         </div>
     </div>
+
+    <div id="toast-container"></div>
 
     <script>
         const firebaseConfig = {
