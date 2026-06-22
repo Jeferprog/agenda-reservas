@@ -384,6 +384,23 @@
             return userPallete[Math.abs(hash) % userPallete.length];
         }
 
+        // Normaliza o período (cobre dados antigos: 'dia','manha','tarde')
+        function normalizaPeriodo(p) {
+            const s = String(p || '').trim().toLowerCase();
+            if (s === '' || s === 'dia' || s === 'dia todo' || s === 'diatodo') return 'Dia todo';
+            if (s === 'manha' || s === 'manhã') return 'Manhã';
+            if (s === 'tarde') return 'Tarde';
+            return p; // horário personalizado: mantém como está
+        }
+
+        // Conflito de período: bloqueia se for o mesmo período OU se algum for "Dia todo".
+        // Manhã e Tarde no mesmo local/dia são permitidas.
+        function periodoConflita(a, b) {
+            const na = normalizaPeriodo(a), nb = normalizaPeriodo(b);
+            if (na === 'Dia todo' || nb === 'Dia todo') return true;
+            return na === nb;
+        }
+
         // Monta a etiqueta da reserva em 2 linhas: "Nome | Período" e "Local".
         function setTagContent(el, nome, periodo, local) {
             const top = document.createElement('span');
@@ -538,7 +555,7 @@
                     const r = doc.data();
                     const nome = r.userName || r.username || "---";
                     const cor = userColorMap[nome] || r.userColor || stringToColor(nome);
-                    const periodo = r.period || 'Dia todo';
+                    const periodo = normalizaPeriodo(r.period);
                     const local = r.placeName || r.local || "---";
 
                     // Adiciona no calendário logado
@@ -691,7 +708,7 @@
             const dataFormatada = r.date.split('-').reverse().join('/');
             document.getElementById('editReservaInfo').innerText = `Usuário: ${nome} | Data: ${dataFormatada}`;
             document.getElementById('editSelectPlace').value = r.placeName || r.local || "";
-            document.getElementById('editSelectPeriodo').value = r.period || "Dia todo";
+            document.getElementById('editSelectPeriodo').value = normalizaPeriodo(r.period);
             document.getElementById('modalEditReservaBg').style.display = "flex";
         }
 
@@ -709,9 +726,10 @@
 
             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
 
-            if (l !== reservaEditData.placeName) {
+            if (u.role !== 'admin') {
                 const q = await db.collection('reservations').where('date','==',reservaEditData.date).where('placeName','==',l).get();
-                if(u.role !== 'admin' && !q.empty) return showToast("O novo local já está ocupado nesta data.", "error");
+                const conflito = q.docs.some(d => d.id !== reservaEditId && periodoConflita(p, d.data().period));
+                if(conflito) return showToast("Já existe reserva neste local para esse período (ou o dia todo).", "error");
             }
 
             await db.collection('reservations').doc(reservaEditId).update({
@@ -735,9 +753,11 @@
             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
             const l = document.getElementById('selectPlace').value;
             if(!dataSelecionada || !l) return showToast("Selecione data e local no calendário!", "warning");
+            const novoPeriodo = document.getElementById('selectPeriodo').value;
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
-            if(u.role !== 'admin' && !q.empty) return showToast("Este local já está ocupado nesta data.", "error");
-            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: document.getElementById('selectPeriodo').value, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            if(u.role !== 'admin' && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
+                return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
+            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
             showToast("Reserva confirmada com sucesso!");
             dataSelecionada = "";
             document.getElementById('labelData').innerText = "Selecione um dia no calendário";
