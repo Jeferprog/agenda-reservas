@@ -64,11 +64,17 @@
         /* Calendário (estrutura gerada pelo JS) */
         .cal-table { width:100%; table-layout:fixed; border-collapse:separate; border-spacing:4px; }
         .cal-table th { color:#44474a; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:6px 0; }
-        .cal-table td { height:116px; vertical-align:top; border:1px solid rgba(196,199,200,.45); border-radius:8px; padding:6px; background:#fff; transition:border-color .15s, box-shadow .15s; cursor:pointer; }
+        .cal-table td { height:110px; vertical-align:top; border:1px solid rgba(196,199,200,.45); border-radius:8px; padding:6px; background:#fff; transition:border-color .15s, box-shadow .15s; cursor:pointer; }
         .cal-table td:hover { border-color:rgba(0,92,70,.45); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+        /* Domingo (1ª) e Sábado (7ª) mais estreitos — sobra largura para os dias úteis */
+        .cal-table th:first-child, .cal-table th:last-child { width:7%; }
+        .cal-table td:first-child, .cal-table td:last-child { width:7%; background:#f1f4f8; }
         .cal-day-num { font-size:12px; font-weight:700; color:#44474a; }
-        .reserva-container { display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:80px; overflow-y:auto; }
-        .reserva-tag { font-size:10px; font-weight:700; color:#fff; padding:3px 6px; border-radius:6px; line-height:1.25; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.18); }
+        /* A célula cresce conforme o número de reservas (sem rolagem interna). */
+        .reserva-container { display:flex; flex-direction:column; gap:4px; margin-top:6px; }
+        .reserva-tag { color:#fff; padding:4px 8px; border-radius:6px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.18); display:flex; flex-direction:column; gap:1px; }
+        .reserva-tag .rt-top { font-size:11px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .reserva-tag .rt-sub { font-size:10px; font-weight:500; line-height:1.2; opacity:.95; word-break:break-word; }
         .reserva-tag:hover { filter:brightness(1.08); }
 
         /* Listas de administração (geradas pelo JS) */
@@ -97,14 +103,19 @@
 
     <!-- HEADER GLOBAL -->
     <header class="bg-surface-card shadow-sm sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
-                <span class="material-symbols-outlined">calendar_month</span>
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="text-primary font-black text-lg md:text-xl uppercase tracking-tight">Agenda de Visitas</h1>
+                    <p class="text-[11px] text-on-surface-variant font-medium">Cresol Cooperar</p>
+                </div>
             </div>
-            <div class="leading-tight">
-                <h1 class="text-primary font-black text-lg md:text-xl uppercase tracking-tight">Agenda de Visitas</h1>
-                <p class="text-[11px] text-on-surface-variant font-medium">Cresol Cooperar</p>
-            </div>
+            <button id="btnGoToLogin" class="bg-primary text-on-primary flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 rounded-xl font-bold shadow-md hover:bg-primary-dark active:scale-95 transition-all whitespace-nowrap">
+                <span class="material-symbols-outlined">lock</span> Acesso Restrito
+            </button>
         </div>
     </header>
 
@@ -112,17 +123,6 @@
 
     <!-- ===================== TELA PÚBLICA ===================== -->
     <section id="publicCard">
-        <div class="flex flex-col items-center text-center gap-2 mb-6">
-            <span class="bg-primary-container text-on-primary-container px-4 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase inline-flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Sistema Cresol Cooperar
-            </span>
-            <h2 class="text-2xl md:text-3xl font-bold text-primary">Visão Geral da Agenda</h2>
-            <p class="text-on-surface-variant max-w-lg">Consulte a disponibilidade de espaços e agendamentos institucionais.</p>
-            <button id="btnGoToLogin" class="mt-2 bg-primary text-on-primary flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-primary-dark active:scale-95 transition-all">
-                <span class="material-symbols-outlined">lock</span> Acesso Restrito
-            </button>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Calendário público -->
             <div class="lg:col-span-9 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
@@ -188,7 +188,7 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <!-- Calendário -->
-            <div class="lg:col-span-8 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
+            <div class="lg:col-span-9 bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 overflow-hidden">
                 <div class="flex items-center justify-between p-4 border-b border-outline-variant/30 bg-surface">
                     <h3 id="mesAnoAtual" class="text-primary font-bold text-lg"></h3>
                     <div class="flex gap-2">
@@ -205,7 +205,7 @@
             </div>
 
             <!-- Formulário de agendamento -->
-            <div class="lg:col-span-4">
+            <div class="lg:col-span-3">
                 <div class="bg-surface-card rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] border border-outline-variant/30 p-5 lg:sticky lg:top-24">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="w-11 h-11 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center"><span class="material-symbols-outlined">add_circle</span></div>
@@ -384,6 +384,36 @@
             return userPallete[Math.abs(hash) % userPallete.length];
         }
 
+        // Normaliza o período (cobre dados antigos: 'dia','manha','tarde')
+        function normalizaPeriodo(p) {
+            const s = String(p || '').trim().toLowerCase();
+            if (s === '' || s === 'dia' || s === 'dia todo' || s === 'diatodo') return 'Dia todo';
+            if (s === 'manha' || s === 'manhã') return 'Manhã';
+            if (s === 'tarde') return 'Tarde';
+            return p; // horário personalizado: mantém como está
+        }
+
+        // Conflito de período: bloqueia se for o mesmo período OU se algum for "Dia todo".
+        // Manhã e Tarde no mesmo local/dia são permitidas.
+        function periodoConflita(a, b) {
+            const na = normalizaPeriodo(a), nb = normalizaPeriodo(b);
+            if (na === 'Dia todo' || nb === 'Dia todo') return true;
+            return na === nb;
+        }
+
+        // Monta a etiqueta da reserva em 2 linhas: "Nome | Período" e "Local".
+        function setTagContent(el, nome, periodo, local) {
+            const top = document.createElement('span');
+            top.className = 'rt-top';
+            top.textContent = `${nome} | ${periodo}`;
+            const sub = document.createElement('span');
+            sub.className = 'rt-sub';
+            sub.textContent = local;
+            el.innerHTML = '';
+            el.appendChild(top);
+            el.appendChild(sub);
+        }
+
         // FUNÇÕES DE UI CUSTOMIZADAS
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -436,10 +466,12 @@
         document.getElementById('btnGoToLogin').onclick = () => {
             document.getElementById('publicCard').classList.add('hidden');
             document.getElementById('authCard').classList.remove('hidden');
+            document.getElementById('btnGoToLogin').classList.add('hidden');
         };
         document.getElementById('btnBackToPub').onclick = () => {
             document.getElementById('authCard').classList.add('hidden');
             document.getElementById('publicCard').classList.remove('hidden');
+            document.getElementById('btnGoToLogin').classList.remove('hidden');
         };
 
         // LOGIN (validado no servidor GAS — a senha não trafega para o navegador)
@@ -523,7 +555,8 @@
                     const r = doc.data();
                     const nome = r.userName || r.username || "---";
                     const cor = userColorMap[nome] || r.userColor || stringToColor(nome);
-                    const texto = `${nome} | ${r.placeName || r.local || "---"} (${r.period || 'Dia todo'})`;
+                    const periodo = normalizaPeriodo(r.period);
+                    const local = r.placeName || r.local || "---";
 
                     // Adiciona no calendário logado
                     const cell = document.getElementById("cell-" + r.date);
@@ -531,7 +564,7 @@
                         const tag = document.createElement('div');
                         tag.className = "reserva-tag";
                         tag.style.backgroundColor = cor;
-                        tag.innerText = texto;
+                        setTagContent(tag, nome, periodo, local);
                         tag.onclick = (e) => {
                             e.stopPropagation(); // Evita selecionar a data ao clicar na reserva
                             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
@@ -550,7 +583,7 @@
                         const tagPub = document.createElement('div');
                         tagPub.className = "reserva-tag";
                         tagPub.style.backgroundColor = cor;
-                        tagPub.innerText = texto;
+                        setTagContent(tagPub, nome, periodo, local);
                         cellPub.querySelector('.reserva-container').appendChild(tagPub);
                     }
                 });
@@ -675,7 +708,7 @@
             const dataFormatada = r.date.split('-').reverse().join('/');
             document.getElementById('editReservaInfo').innerText = `Usuário: ${nome} | Data: ${dataFormatada}`;
             document.getElementById('editSelectPlace').value = r.placeName || r.local || "";
-            document.getElementById('editSelectPeriodo').value = r.period || "Dia todo";
+            document.getElementById('editSelectPeriodo').value = normalizaPeriodo(r.period);
             document.getElementById('modalEditReservaBg').style.display = "flex";
         }
 
@@ -693,9 +726,10 @@
 
             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
 
-            if (l !== reservaEditData.placeName) {
+            if (u.role !== 'admin') {
                 const q = await db.collection('reservations').where('date','==',reservaEditData.date).where('placeName','==',l).get();
-                if(u.role !== 'admin' && !q.empty) return showToast("O novo local já está ocupado nesta data.", "error");
+                const conflito = q.docs.some(d => d.id !== reservaEditId && periodoConflita(p, d.data().period));
+                if(conflito) return showToast("Já existe reserva neste local para esse período (ou o dia todo).", "error");
             }
 
             await db.collection('reservations').doc(reservaEditId).update({
@@ -719,9 +753,11 @@
             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
             const l = document.getElementById('selectPlace').value;
             if(!dataSelecionada || !l) return showToast("Selecione data e local no calendário!", "warning");
+            const novoPeriodo = document.getElementById('selectPeriodo').value;
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
-            if(u.role !== 'admin' && !q.empty) return showToast("Este local já está ocupado nesta data.", "error");
-            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: document.getElementById('selectPeriodo').value, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            if(u.role !== 'admin' && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
+                return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
+            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
             showToast("Reserva confirmada com sucesso!");
             dataSelecionada = "";
             document.getElementById('labelData').innerText = "Selecione um dia no calendário";
@@ -739,6 +775,7 @@
 
             if(u) {
                 // Logado
+                document.getElementById('btnGoToLogin').classList.add('hidden');
                 document.getElementById('reservasCard').classList.remove('hidden');
                 document.getElementById('boasVindas').innerText = "Olá, " + u.username;
                 if(u.role === 'admin') {
@@ -748,6 +785,7 @@
                 }
             } else {
                 // Não logado -> Tela Pública
+                document.getElementById('btnGoToLogin').classList.remove('hidden');
                 document.getElementById('publicCard').classList.remove('hidden');
             }
 
