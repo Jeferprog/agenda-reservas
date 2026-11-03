@@ -139,7 +139,12 @@ function addUser(token, username, password, role) {
   if (readUsers_().some(x => x.username.toLowerCase() === username.toLowerCase()))
     throw new Error('Usuário já existe.');
 
-  getSheet_().appendRow([Utilities.getUuid(), username, password, role, colorFor_(username)]);
+  try {
+    getSheet_().appendRow([Utilities.getUuid(), username, password, role, colorFor_(username)]);
+  } catch (err) {
+    throw new Error('Falha ao gravar na planilha: ' + (err && err.message ? err.message : err) +
+      ' — verifique se a implantação executa como VOCÊ (dono) e se a planilha USERS_SHEET_ID é editável pela sua conta.');
+  }
   return { ok: true };
 }
 

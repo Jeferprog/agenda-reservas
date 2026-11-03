@@ -698,7 +698,7 @@
                 document.getElementById('modalUserBg').style.display = "none";
                 showToast("Usuário cadastrado.");
                 loadUsersAdmin();
-            } catch(e) { showToast(e.message || "Erro ao cadastrar usuário.", "error"); }
+            } catch(e) { console.error('addUser falhou:', e); showToast((e && (e.message || e.toString())) || "Erro ao cadastrar usuário.", "error"); }
         };
         document.getElementById('btnAddPlace').onclick = () => { const n = document.getElementById('novoPlaceNome').value.trim(); if(n) db.collection('places').add({ name: n }); document.getElementById('novoPlaceNome').value = ""; };
 
