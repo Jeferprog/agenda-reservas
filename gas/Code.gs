@@ -55,7 +55,7 @@ function readUsers_() {
     .map((r, i) => ({
       rowIndex: i + 2, // linha real na planilha (1-based + cabeçalho)
       id: String(r[0]),
-      username: String(r[1] == null ? '' : r[1]),
+      username: String(r[1] == null ? '' : r[1]).trim(),
       password: String(r[2] == null ? '' : r[2]),
       role: normalizeRole_(r[3]),
       color: String(r[4] || '')
@@ -124,8 +124,9 @@ function login(username, password) {
   password = String(password || '').trim();
   if (!username || !password) return { ok: false, message: 'Informe usuário e senha.' };
 
-  const u = readUsers_().find(x => x.username.toLowerCase() === username.toLowerCase());
-  if (!u || u.password !== password) return { ok: false, message: 'Usuário ou senha inválidos.' };
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === username.toLowerCase());
+  if (!u) return { ok: false, message: 'Usuário não encontrado.' };
+  if (String(u.password).trim() !== password) return { ok: false, message: 'Senha incorreta.' };
 
   return { ok: true, token: createSession_(u), user: publicUser_(u) };
 }
@@ -133,6 +134,95 @@ function login(username, password) {
 function logout(token) {
   // Token stateless: nada a limpar no servidor; o cliente apaga o token.
   return { ok: true };
+}
+
+/**
+ * Autoatendimento com trava de primeiro acesso.
+ * - 1º acesso (senha ainda é o hash legado): redefine só com usuário + nova senha.
+ * - Conta já com senha própria: exige a senha ATUAL para trocar (evita que
+ *   terceiros redefinam a senha de quem já configurou a sua).
+ */
+function redefinirMinhaSenha(username, novaSenha, senhaAtual) {
+  username = String(username || '').trim();
+  novaSenha = String(novaSenha || '').trim();
+  senhaAtual = String(senhaAtual || '').trim();
+  if (!username || !novaSenha) return { ok: false, message: 'Informe usuário e nova senha.' };
+  if (novaSenha.length < 4) return { ok: false, message: 'A nova senha deve ter ao menos 4 caracteres.' };
+
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === username.toLowerCase());
+  if (!u) return { ok: false, message: 'Usuário não encontrado.' };
+
+  const atual = String(u.password).trim();
+  // Senha legada (hash) tem ~101 caracteres; senha própria é bem mais curta.
+  const ehPrimeiroAcesso = atual.length >= 50;
+
+  if (!ehPrimeiroAcesso) {
+    if (!senhaAtual) return { ok: false, message: 'Esta conta já tem senha. Informe a senha atual para trocar.' };
+    if (senhaAtual !== atual) return { ok: false, message: 'Senha atual incorreta.' };
+  }
+
+  try {
+    getSheet_().getRange(u.rowIndex, 3).setValue(novaSenha);
+  } catch (err) {
+    return { ok: false, message: 'Falha ao gravar na planilha: ' + (err && err.message ? err.message : err) +
+      ' — verifique se a implantação executa como o dono e se a planilha é editável.' };
+  }
+  return { ok: true, message: 'Senha redefinida! Agora faça login com a nova senha.' };
+}
+
+/**
+ * DIAGNÓSTICO — rode esta função direto no editor do Apps Script
+ * (selecione "diagnosticarUsuarios" e clique em ▶ Executar) e veja o
+ * resultado em "Registros de execução". Mostra como o papel (role) está
+ * gravado na planilha e se conta como admin.
+ */
+function diagnosticarUsuarios() {
+  const sh = getSheet_();
+  const values = sh.getDataRange().getValues();
+  Logger.log('Planilha USERS_SHEET_ID: ' + PropertiesService.getScriptProperties().getProperty('USERS_SHEET_ID'));
+  Logger.log('Cabeçalho: ' + JSON.stringify(values[0]));
+  let n = 0;
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    if (!r[1]) continue;
+    n++;
+    const ehAdmin = String(r[3] || '').trim().toLowerCase() === 'admin';
+    const user = String(r[1]);
+    const senha = String(r[2] == null ? '' : r[2]);
+    Logger.log('username="' + user + '" | role_na_planilha="' + r[3] + '" | admin? ' + ehAdmin
+      + ' | user_com_espaco=' + (user !== user.trim())
+      + ' | senha_len=' + senha.length + ' | senha_com_espaco=' + (senha !== senha.trim()));
+  }
+  Logger.log('Total de usuários: ' + n);
+  return n;
+}
+
+/**
+ * INSPECIONAR — mostra o início da senha armazenada de um usuário, para
+ * identificar se é texto puro ou um hash. Ajuste USERNAME e rode no editor.
+ */
+function amostraSenha() {
+  const USERNAME = 'Magda'; // <-- ajuste para o usuário que quer inspecionar
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === USERNAME.trim().toLowerCase());
+  if (!u) { Logger.log('Usuário não encontrado: ' + USERNAME); return; }
+  Logger.log('Usuário: ' + u.username + ' | tamanho da senha: ' + u.password.length);
+  Logger.log('Início: ' + u.password.substring(0, 30) + '...');
+}
+
+/**
+ * REDEFINIR SENHA (texto puro) — desbloqueia o login.
+ * Ajuste USERNAME e NOVA_SENHA abaixo e rode no editor (▶). Não precisa implantar.
+ * Depois entre no app com esse usuário/senha; como admin, use o 🔑 para
+ * redefinir a senha dos demais colaboradores.
+ */
+function redefinirSenha() {
+  const USERNAME = 'Magda';          // <-- ajuste
+  const NOVA_SENHA = 'Cresol@2024';  // <-- ajuste (texto puro)
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === USERNAME.trim().toLowerCase());
+  if (!u) throw new Error('Usuário não encontrado: ' + USERNAME);
+  getSheet_().getRange(u.rowIndex, 3).setValue(String(NOVA_SENHA));
+  Logger.log('Senha de ' + u.username + ' redefinida para texto puro. Já pode logar.');
+  return 'OK';
 }
 
 /**

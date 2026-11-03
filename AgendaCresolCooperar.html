@@ -172,6 +172,7 @@
                 <button id="btnBackToPub" class="w-full mt-3 border border-primary text-primary font-bold py-3 rounded-xl hover:bg-surface-container-high active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     <span class="material-symbols-outlined">arrow_back</span> Voltar para Agenda
                 </button>
+                <button id="btnAbrirReset" class="w-full mt-3 text-sm text-primary font-semibold hover:underline">Primeiro acesso? Redefinir minha senha</button>
             </div>
         </div>
     </section>
@@ -263,6 +264,27 @@
     </main>
 
     <!-- ===================== MODAIS ===================== -->
+    <div id="modalResetBg" class="modal-bg">
+        <div class="bg-surface-card w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
+            <div class="bg-primary text-on-primary px-5 py-4 flex justify-between items-center">
+                <h3 class="font-bold text-lg">Redefinir minha senha</h3>
+                <button id="btnFecharReset" class="hover:bg-white/20 rounded-full p-1"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="p-5">
+                <p class="text-sm text-on-surface-variant mb-4">Informe seu usuário e escolha uma nova senha. <b>No primeiro acesso</b>, deixe "Senha atual" em branco; se você já tem senha, informe-a para trocar.</p>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Usuário</label>
+                <input id="resetUser" type="text" class="field mb-4" placeholder="Seu usuário">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Senha atual (deixe em branco no 1º acesso)</label>
+                <input id="resetAtual" type="password" class="field mb-4" placeholder="Senha atual, se já tiver">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Nova senha</label>
+                <input id="resetPass1" type="password" class="field mb-4" placeholder="Nova senha">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Confirmar nova senha</label>
+                <input id="resetPass2" type="password" class="field mb-5" placeholder="Repita a nova senha">
+                <button id="btnConfirmarReset" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl shadow-md hover:bg-primary-dark active:scale-[0.98] transition-all">Redefinir senha</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalUserBg" class="modal-bg">
         <div class="bg-surface-card w-full max-w-md rounded-2xl overflow-hidden shadow-2xl">
             <div class="bg-secondary text-on-secondary px-5 py-4 flex justify-between items-center">
@@ -472,6 +494,40 @@
             document.getElementById('authCard').classList.add('hidden');
             document.getElementById('publicCard').classList.remove('hidden');
             document.getElementById('btnGoToLogin').classList.remove('hidden');
+        };
+
+        // REDEFINIR MINHA SENHA (autoatendimento / primeiro acesso)
+        document.getElementById('btnAbrirReset').onclick = () => {
+            document.getElementById('resetUser').value = document.getElementById('usernameLogin').value.trim();
+            document.getElementById('resetAtual').value = '';
+            document.getElementById('resetPass1').value = '';
+            document.getElementById('resetPass2').value = '';
+            document.getElementById('modalResetBg').style.display = 'flex';
+        };
+        document.getElementById('btnFecharReset').onclick = () => document.getElementById('modalResetBg').style.display = 'none';
+        document.getElementById('btnConfirmarReset').onclick = async () => {
+            const user = document.getElementById('resetUser').value.trim();
+            const atual = document.getElementById('resetAtual').value;
+            const p1 = document.getElementById('resetPass1').value;
+            const p2 = document.getElementById('resetPass2').value;
+            if(!user || !p1) return showToast('Informe usuário e nova senha.', 'warning');
+            if(p1 !== p2) return showToast('As senhas não conferem.', 'warning');
+            document.getElementById('loading').style.display = 'flex';
+            try {
+                const res = await gasCall('redefinirMinhaSenha', user, p1, atual);
+                if(res && res.ok) {
+                    showToast(res.message || 'Senha redefinida!');
+                    document.getElementById('modalResetBg').style.display = 'none';
+                    document.getElementById('usernameLogin').value = user;
+                    document.getElementById('senhaLogin').value = '';
+                } else {
+                    showToast((res && res.message) || 'Não foi possível redefinir.', 'error');
+                }
+            } catch(e) {
+                showToast(e.message || 'Erro ao redefinir senha.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
         };
 
         // LOGIN (validado no servidor GAS — a senha não trafega para o navegador)
