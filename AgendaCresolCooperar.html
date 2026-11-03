@@ -271,9 +271,11 @@
                 <button id="btnFecharReset" class="hover:bg-white/20 rounded-full p-1"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="p-5">
-                <p class="text-sm text-on-surface-variant mb-4">Informe seu usuário e escolha uma nova senha.</p>
+                <p class="text-sm text-on-surface-variant mb-4">Informe seu usuário e escolha uma nova senha. <b>No primeiro acesso</b>, deixe "Senha atual" em branco; se você já tem senha, informe-a para trocar.</p>
                 <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Usuário</label>
                 <input id="resetUser" type="text" class="field mb-4" placeholder="Seu usuário">
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Senha atual (deixe em branco no 1º acesso)</label>
+                <input id="resetAtual" type="password" class="field mb-4" placeholder="Senha atual, se já tiver">
                 <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Nova senha</label>
                 <input id="resetPass1" type="password" class="field mb-4" placeholder="Nova senha">
                 <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Confirmar nova senha</label>
@@ -497,6 +499,7 @@
         // REDEFINIR MINHA SENHA (autoatendimento / primeiro acesso)
         document.getElementById('btnAbrirReset').onclick = () => {
             document.getElementById('resetUser').value = document.getElementById('usernameLogin').value.trim();
+            document.getElementById('resetAtual').value = '';
             document.getElementById('resetPass1').value = '';
             document.getElementById('resetPass2').value = '';
             document.getElementById('modalResetBg').style.display = 'flex';
@@ -504,13 +507,14 @@
         document.getElementById('btnFecharReset').onclick = () => document.getElementById('modalResetBg').style.display = 'none';
         document.getElementById('btnConfirmarReset').onclick = async () => {
             const user = document.getElementById('resetUser').value.trim();
+            const atual = document.getElementById('resetAtual').value;
             const p1 = document.getElementById('resetPass1').value;
             const p2 = document.getElementById('resetPass2').value;
             if(!user || !p1) return showToast('Informe usuário e nova senha.', 'warning');
             if(p1 !== p2) return showToast('As senhas não conferem.', 'warning');
             document.getElementById('loading').style.display = 'flex';
             try {
-                const res = await gasCall('redefinirMinhaSenha', user, p1);
+                const res = await gasCall('redefinirMinhaSenha', user, p1, atual);
                 if(res && res.ok) {
                     showToast(res.message || 'Senha redefinida!');
                     document.getElementById('modalResetBg').style.display = 'none';

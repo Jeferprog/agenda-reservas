@@ -137,18 +137,29 @@ function logout(token) {
 }
 
 /**
- * Autoatendimento: o próprio usuário redefine sua senha (texto puro) informando
- * o nome de usuário. Não exige login — serve de "primeiro acesso" para destravar
- * contas cuja senha veio como hash na migração.
+ * Autoatendimento com trava de primeiro acesso.
+ * - 1º acesso (senha ainda é o hash legado): redefine só com usuário + nova senha.
+ * - Conta já com senha própria: exige a senha ATUAL para trocar (evita que
+ *   terceiros redefinam a senha de quem já configurou a sua).
  */
-function redefinirMinhaSenha(username, novaSenha) {
+function redefinirMinhaSenha(username, novaSenha, senhaAtual) {
   username = String(username || '').trim();
   novaSenha = String(novaSenha || '').trim();
+  senhaAtual = String(senhaAtual || '').trim();
   if (!username || !novaSenha) return { ok: false, message: 'Informe usuário e nova senha.' };
   if (novaSenha.length < 4) return { ok: false, message: 'A nova senha deve ter ao menos 4 caracteres.' };
 
   const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === username.toLowerCase());
   if (!u) return { ok: false, message: 'Usuário não encontrado.' };
+
+  const atual = String(u.password).trim();
+  // Senha legada (hash) tem ~101 caracteres; senha própria é bem mais curta.
+  const ehPrimeiroAcesso = atual.length >= 50;
+
+  if (!ehPrimeiroAcesso) {
+    if (!senhaAtual) return { ok: false, message: 'Esta conta já tem senha. Informe a senha atual para trocar.' };
+    if (senhaAtual !== atual) return { ok: false, message: 'Senha atual incorreta.' };
+  }
 
   try {
     getSheet_().getRange(u.rowIndex, 3).setValue(novaSenha);
