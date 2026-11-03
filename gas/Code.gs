@@ -137,6 +137,29 @@ function logout(token) {
 }
 
 /**
+ * Autoatendimento: o próprio usuário redefine sua senha (texto puro) informando
+ * o nome de usuário. Não exige login — serve de "primeiro acesso" para destravar
+ * contas cuja senha veio como hash na migração.
+ */
+function redefinirMinhaSenha(username, novaSenha) {
+  username = String(username || '').trim();
+  novaSenha = String(novaSenha || '').trim();
+  if (!username || !novaSenha) return { ok: false, message: 'Informe usuário e nova senha.' };
+  if (novaSenha.length < 4) return { ok: false, message: 'A nova senha deve ter ao menos 4 caracteres.' };
+
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === username.toLowerCase());
+  if (!u) return { ok: false, message: 'Usuário não encontrado.' };
+
+  try {
+    getSheet_().getRange(u.rowIndex, 3).setValue(novaSenha);
+  } catch (err) {
+    return { ok: false, message: 'Falha ao gravar na planilha: ' + (err && err.message ? err.message : err) +
+      ' — verifique se a implantação executa como o dono e se a planilha é editável.' };
+  }
+  return { ok: true, message: 'Senha redefinida! Agora faça login com a nova senha.' };
+}
+
+/**
  * DIAGNÓSTICO — rode esta função direto no editor do Apps Script
  * (selecione "diagnosticarUsuarios" e clique em ▶ Executar) e veja o
  * resultado em "Registros de execução". Mostra como o papel (role) está
