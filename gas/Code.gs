@@ -136,6 +136,29 @@ function logout(token) {
 }
 
 /**
+ * DIAGNÓSTICO — rode esta função direto no editor do Apps Script
+ * (selecione "diagnosticarUsuarios" e clique em ▶ Executar) e veja o
+ * resultado em "Registros de execução". Mostra como o papel (role) está
+ * gravado na planilha e se conta como admin.
+ */
+function diagnosticarUsuarios() {
+  const sh = getSheet_();
+  const values = sh.getDataRange().getValues();
+  Logger.log('Planilha USERS_SHEET_ID: ' + PropertiesService.getScriptProperties().getProperty('USERS_SHEET_ID'));
+  Logger.log('Cabeçalho: ' + JSON.stringify(values[0]));
+  let n = 0;
+  for (let i = 1; i < values.length; i++) {
+    const r = values[i];
+    if (!r[1]) continue;
+    n++;
+    const ehAdmin = String(r[3] || '').trim().toLowerCase() === 'admin';
+    Logger.log('username="' + r[1] + '" | role_na_planilha="' + r[3] + '" | conta_como_admin? ' + ehAdmin);
+  }
+  Logger.log('Total de usuários: ' + n);
+  return n;
+}
+
+/**
  * Mapa público de cores (username -> color), SEM senhas.
  * Usado pelo calendário (inclusive a visão pública) para exibir a cor
  * atual de cada usuário. Os nomes já aparecem nas reservas do calendário,
