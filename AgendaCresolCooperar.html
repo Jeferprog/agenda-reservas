@@ -236,7 +236,10 @@
     <section id="adminCard" class="hidden">
         <div class="flex items-center justify-between mb-5">
             <h2 class="text-primary font-bold text-xl flex items-center gap-2"><span class="material-symbols-outlined">build</span> Manutenção do Sistema</h2>
-            <button id="btnVoltarAdmin" class="border border-outline-variant text-on-surface-variant font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2"><span class="material-symbols-outlined">chevron_left</span> Voltar</button>
+            <div class="flex gap-2">
+                <button id="btnSincronizar" class="border border-primary text-primary font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2" title="Copia locais e reservas do Firestore para a planilha"><span class="material-symbols-outlined">sync</span> Sincronizar planilha</button>
+                <button id="btnVoltarAdmin" class="border border-outline-variant text-on-surface-variant font-bold px-4 py-2 rounded-xl hover:bg-surface-container-high active:scale-95 transition-all flex items-center gap-2"><span class="material-symbols-outlined">chevron_left</span> Voltar</button>
+            </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -392,6 +395,15 @@
         }
 
         function getToken() { return sessionStorage.getItem("sessToken") || ""; }
+
+        // Espelho (dual-write) NÃO bloqueante: grava também na planilha via GAS.
+        // Se falhar, só registra no console — não atrapalha o Firestore nem a tela.
+        function mirror(fn) {
+            const args = Array.prototype.slice.call(arguments, 1);
+            try {
+                gasCall.apply(null, [fn].concat(args)).catch(e => console.warn('Espelho ' + fn + ' falhou:', e && e.message));
+            } catch (e) { console.warn('Espelho ' + fn + ' erro:', e && e.message); }
+        }
 
         let dataSelecionada = "";
         let mesVisualizacao = new Date();
@@ -704,14 +716,14 @@
             });
         }
 
-        window.editPlace = async (id, old) => { const n = await customPrompt("Novo nome do local:", old); if(n && n !== old) await db.collection('places').doc(id).update({ name: n }); };
+        window.editPlace = async (id, old) => { const n = await customPrompt("Novo nome do local:", old); if(n && n !== old) { await db.collection('places').doc(id).update({ name: n }); mirror('mirrorSavePlace', getToken(), id, n); } };
         window.editUser = async (id, name) => {
             const p = await customPrompt(`Nova senha para ${name}:`, "", "password");
             if(!p) return;
             try { await gasCall('updateUserPassword', getToken(), id, p); showToast("Senha alterada com sucesso!"); }
             catch(e) { showToast(e.message || "Erro ao alterar senha.", "error"); }
         };
-        window.deletePlace = async id => { if(await customConfirm("Tem certeza que deseja excluir este local?")) db.collection('places').doc(id).delete(); };
+        window.deletePlace = async id => { if(await customConfirm("Tem certeza que deseja excluir este local?")) { db.collection('places').doc(id).delete(); mirror('mirrorDeletePlace', getToken(), id); } };
         window.deleteUser = async id => {
             if(!(await customConfirm("Tem certeza que deseja excluir este usuário?"))) return;
             try { await gasCall('deleteUser', getToken(), id); showToast("Usuário excluído."); loadUsersAdmin(); }
@@ -756,7 +768,7 @@
                 loadUsersAdmin();
             } catch(e) { console.error('addUser falhou:', e); showToast((e && (e.message || e.toString())) || "Erro ao cadastrar usuário.", "error"); }
         };
-        document.getElementById('btnAddPlace').onclick = () => { const n = document.getElementById('novoPlaceNome').value.trim(); if(n) db.collection('places').add({ name: n }); document.getElementById('novoPlaceNome').value = ""; };
+        document.getElementById('btnAddPlace').onclick = () => { const n = document.getElementById('novoPlaceNome').value.trim(); if(n) db.collection('places').add({ name: n }).then(ref => mirror('mirrorSavePlace', getToken(), ref.id, n)); document.getElementById('novoPlaceNome').value = ""; };
 
         function abrirModalEdicao(id, r, nome) {
             reservaEditId = id;
@@ -792,6 +804,7 @@
                 placeName: l,
                 period: p
             });
+            mirror('mirrorSaveReserva', getToken(), reservaEditId, { date: reservaEditData.date, placeName: l, period: p, userName: reservaEditData.userName, userColor: reservaEditData.userColor });
             showToast("Reserva atualizada com sucesso!");
             document.getElementById('modalEditReservaBg').style.display = "none";
         };
@@ -799,7 +812,9 @@
         document.getElementById('btnExcluirReserva').onclick = async () => {
             if(!reservaEditId) return;
             if(await customConfirm("Tem certeza que deseja excluir esta reserva?")) {
-                await db.collection('reservations').doc(reservaEditId).delete();
+                const idDel = reservaEditId;
+                await db.collection('reservations').doc(idDel).delete();
+                mirror('mirrorDeleteReserva', getToken(), idDel);
                 showToast("Reserva excluída com sucesso!");
                 document.getElementById('modalEditReservaBg').style.display = "none";
             }
@@ -813,7 +828,8 @@
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
             if(u.role !== 'admin' && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
                 return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
-            await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color });
             showToast("Reserva confirmada com sucesso!");
             dataSelecionada = "";
             document.getElementById('labelData').innerText = "Selecione um dia no calendário";
@@ -850,6 +866,29 @@
 
         document.getElementById('btnAdmin').onclick = () => { document.getElementById('reservasCard').classList.add('hidden'); document.getElementById('adminCard').classList.remove('hidden'); loadUsersAdmin(); };
         document.getElementById('btnVoltarAdmin').onclick = () => { document.getElementById('adminCard').classList.add('hidden'); document.getElementById('reservasCard').classList.remove('hidden'); };
+
+        // SINCRONIZAR (backfill): copia locais e reservas do Firestore para a planilha
+        document.getElementById('btnSincronizar').onclick = async () => {
+            if(!(await customConfirm("Copiar TODOS os locais e reservas atuais para a planilha? (regrava as abas Locais e Reservas)"))) return;
+            document.getElementById('loading').style.display = 'flex';
+            try {
+                const [ps, rs] = await Promise.all([
+                    db.collection('places').get(),
+                    db.collection('reservations').get()
+                ]);
+                const places = ps.docs.map(d => ({ id: d.id, name: d.data().name || '' }));
+                const reservas = rs.docs.map(d => { const x = d.data(); return {
+                    id: d.id, date: x.date || '', placeName: x.placeName || x.local || '',
+                    period: x.period || '', userName: x.userName || x.username || '', userColor: x.userColor || ''
+                }; });
+                const res = await gasCall('espelharTudo', getToken(), places, reservas);
+                showToast('Planilha sincronizada: ' + ((res && res.locais) || 0) + ' locais e ' + ((res && res.reservas) || 0) + ' reservas.');
+            } catch(e) {
+                showToast(e.message || 'Erro ao sincronizar.', 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        };
 
         // Navegação Calendário Logado
         document.getElementById('btnPrev').onclick = () => { mesVisualizacao.setMonth(mesVisualizacao.getMonth()-1); renderCalendar(); };

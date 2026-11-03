@@ -286,3 +286,93 @@ function deleteUser(token, id) {
   getSheet_().deleteRow(u.rowIndex);
   return { ok: true };
 }
+
+/* ================= ESPELHO NA PLANILHA (dual-write) =================
+   Transição do banco: locais e reservas continuam no Firestore (leitura
+   em tempo real), mas cada gravação é espelhada aqui, nas abas "Locais" e
+   "Reservas", usando o ID do documento do Firestore como chave. */
+
+function requireSession_(token) {
+  const s = getSession_(token);
+  if (!s) throw new Error('Sessão expirada. Faça login novamente.');
+  return s;
+}
+
+function getTab_(name, header) {
+  const id = PropertiesService.getScriptProperties().getProperty('USERS_SHEET_ID');
+  if (!id) throw new Error('Configure a propriedade USERS_SHEET_ID.');
+  const ss = SpreadsheetApp.openById(id);
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) sh.appendRow(header);
+  return sh;
+}
+function locaisSheet_()  { return getTab_('Locais',  ['firestoreId', 'name']); }
+function reservasSheet_() { return getTab_('Reservas', ['firestoreId', 'date', 'placeName', 'period', 'userName', 'userColor']); }
+
+function findRowByKey_(sh, key) {
+  const values = sh.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) if (String(values[i][0]) === String(key)) return i + 1;
+  return -1;
+}
+
+/* ---- Locais ---- */
+function mirrorSavePlace(token, firestoreId, name) {
+  requireAdmin_(token);
+  const sh = locaisSheet_();
+  const data = [String(firestoreId), String(name == null ? '' : name)];
+  const row = findRowByKey_(sh, firestoreId);
+  if (row < 0) sh.appendRow(data); else sh.getRange(row, 1, 1, data.length).setValues([data]);
+  return { ok: true };
+}
+function mirrorDeletePlace(token, firestoreId) {
+  requireAdmin_(token);
+  const sh = locaisSheet_();
+  const row = findRowByKey_(sh, firestoreId);
+  if (row > 0) sh.deleteRow(row);
+  return { ok: true };
+}
+
+/* ---- Reservas ---- */
+function mirrorSaveReserva(token, firestoreId, d) {
+  requireSession_(token);
+  d = d || {};
+  const sh = reservasSheet_();
+  const data = [String(firestoreId), String(d.date || ''), String(d.placeName || ''),
+                String(d.period || ''), String(d.userName || ''), String(d.userColor || '')];
+  const row = findRowByKey_(sh, firestoreId);
+  if (row < 0) sh.appendRow(data); else sh.getRange(row, 1, 1, data.length).setValues([data]);
+  return { ok: true };
+}
+function mirrorDeleteReserva(token, firestoreId) {
+  requireSession_(token);
+  const sh = reservasSheet_();
+  const row = findRowByKey_(sh, firestoreId);
+  if (row > 0) sh.deleteRow(row);
+  return { ok: true };
+}
+
+/* ---- Backfill / ressincronização completa (admin) ----
+   Recebe TODOS os locais e reservas atuais do Firestore (do cliente) e
+   regrava as abas do zero. Use para popular a planilha e corrigir diferenças. */
+function espelharTudo(token, places, reservas) {
+  requireAdmin_(token);
+  places = places || [];
+  reservas = reservas || [];
+
+  const l = locaisSheet_();
+  if (l.getLastRow() > 1) l.getRange(2, 1, l.getLastRow() - 1, l.getLastColumn()).clearContent();
+  if (places.length) {
+    l.getRange(2, 1, places.length, 2).setValues(places.map(p => [String(p.id), String(p.name || '')]));
+  }
+
+  const r = reservasSheet_();
+  if (r.getLastRow() > 1) r.getRange(2, 1, r.getLastRow() - 1, r.getLastColumn()).clearContent();
+  if (reservas.length) {
+    r.getRange(2, 1, reservas.length, 6).setValues(reservas.map(x => [
+      String(x.id), String(x.date || ''), String(x.placeName || ''),
+      String(x.period || ''), String(x.userName || ''), String(x.userColor || '')
+    ]));
+  }
+  return { ok: true, locais: places.length, reservas: reservas.length };
+}
