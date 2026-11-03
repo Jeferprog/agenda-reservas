@@ -55,7 +55,7 @@ function readUsers_() {
     .map((r, i) => ({
       rowIndex: i + 2, // linha real na planilha (1-based + cabeçalho)
       id: String(r[0]),
-      username: String(r[1] == null ? '' : r[1]),
+      username: String(r[1] == null ? '' : r[1]).trim(),
       password: String(r[2] == null ? '' : r[2]),
       role: normalizeRole_(r[3]),
       color: String(r[4] || '')
@@ -124,8 +124,9 @@ function login(username, password) {
   password = String(password || '').trim();
   if (!username || !password) return { ok: false, message: 'Informe usuário e senha.' };
 
-  const u = readUsers_().find(x => x.username.toLowerCase() === username.toLowerCase());
-  if (!u || u.password !== password) return { ok: false, message: 'Usuário ou senha inválidos.' };
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === username.toLowerCase());
+  if (!u) return { ok: false, message: 'Usuário não encontrado.' };
+  if (String(u.password).trim() !== password) return { ok: false, message: 'Senha incorreta.' };
 
   return { ok: true, token: createSession_(u), user: publicUser_(u) };
 }
@@ -152,7 +153,11 @@ function diagnosticarUsuarios() {
     if (!r[1]) continue;
     n++;
     const ehAdmin = String(r[3] || '').trim().toLowerCase() === 'admin';
-    Logger.log('username="' + r[1] + '" | role_na_planilha="' + r[3] + '" | conta_como_admin? ' + ehAdmin);
+    const user = String(r[1]);
+    const senha = String(r[2] == null ? '' : r[2]);
+    Logger.log('username="' + user + '" | role_na_planilha="' + r[3] + '" | admin? ' + ehAdmin
+      + ' | user_com_espaco=' + (user !== user.trim())
+      + ' | senha_len=' + senha.length + ' | senha_com_espaco=' + (senha !== senha.trim()));
   }
   Logger.log('Total de usuários: ' + n);
   return n;
