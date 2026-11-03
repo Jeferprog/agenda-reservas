@@ -606,7 +606,7 @@
             const list = document.getElementById('adminListaUsers');
             if(!list) return;
             const u = JSON.parse(sessionStorage.getItem("loggedUser") || "null");
-            if(!u || u.role !== 'admin') { list.innerHTML = ""; return; }
+            if(!u || (u.role || '').toString().trim().toLowerCase() !== 'admin') { list.innerHTML = ""; return; }
             list.innerHTML = "<p style='color:#888;'>Carregando...</p>";
             try {
                 const users = await gasCall('listUsers', getToken());
@@ -778,7 +778,7 @@
                 document.getElementById('btnGoToLogin').classList.add('hidden');
                 document.getElementById('reservasCard').classList.remove('hidden');
                 document.getElementById('boasVindas').innerText = "Olá, " + u.username;
-                if(u.role === 'admin') {
+                if((u.role || '').toString().trim().toLowerCase() === 'admin') {
                     document.getElementById('btnAdmin').classList.remove('hidden');
                 } else {
                     document.getElementById('btnAdmin').classList.add('hidden');
