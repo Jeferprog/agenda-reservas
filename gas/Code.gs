@@ -18,7 +18,7 @@
  */
 
 const SHEET_NAME = 'Usuarios';
-const SESSION_TTL_SECONDS = 6 * 60 * 60; // 6 horas
+const SESSION_TTL_SECONDS = 12 * 60 * 60; // 12 horas
 const USER_PALETTE = ['#005c46', '#f58220', '#d62828', '#003049', '#f77f00',
                       '#2a9d8f', '#264653', '#e76f51', '#6610f2', '#e83e8c'];
 
@@ -57,7 +57,7 @@ function readUsers_() {
       id: String(r[0]),
       username: String(r[1] == null ? '' : r[1]),
       password: String(r[2] == null ? '' : r[2]),
-      role: String(r[3] || 'user'),
+      role: normalizeRole_(r[3]),
       color: String(r[4] || '')
     }))
     .filter(u => u.username !== '')
@@ -70,27 +70,49 @@ function publicUser_(u) {
 }
 
 /* ============================ SESSÕES ============================ */
+/* Sessão "stateless": o token é assinado (HMAC) com um segredo do projeto.
+   Não depende de cache (que expira/é descartado), então o login do admin
+   permanece válido até o vencimento (SESSION_TTL_SECONDS). */
+
+function normalizeRole_(r) {
+  return String(r || '').trim().toLowerCase() === 'admin' ? 'admin' : 'user';
+}
+
+function getSessionSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let s = props.getProperty('SESSION_SECRET');
+  if (!s) { s = Utilities.getUuid() + Utilities.getUuid(); props.setProperty('SESSION_SECRET', s); }
+  return s;
+}
+
+function signPart_(data) {
+  const sig = Utilities.computeHmacSha256Signature(data, getSessionSecret_());
+  return Utilities.base64EncodeWebSafe(sig);
+}
 
 function createSession_(u) {
-  const token = Utilities.getUuid();
-  const payload = JSON.stringify({ username: u.username, role: u.role, exp: Date.now() + SESSION_TTL_SECONDS * 1000 });
-  CacheService.getScriptCache().put('sess_' + token, payload, SESSION_TTL_SECONDS);
-  return token;
+  const payload = { username: u.username, role: normalizeRole_(u.role), exp: Date.now() + SESSION_TTL_SECONDS * 1000 };
+  const body = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
+  return body + '.' + signPart_(body);
 }
 
 function getSession_(token) {
-  if (!token) return null;
-  const raw = CacheService.getScriptCache().get('sess_' + token);
-  if (!raw) return null;
-  const s = JSON.parse(raw);
-  if (s.exp < Date.now()) return null;
-  return s;
+  if (!token || String(token).indexOf('.') < 0) return null;
+  const parts = String(token).split('.');
+  const body = parts[0], sig = parts[1];
+  if (!body || !sig || signPart_(body) !== sig) return null; // assinatura inválida
+  let payload;
+  try {
+    payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(body)).getDataAsString());
+  } catch (e) { return null; }
+  if (!payload || !payload.exp || payload.exp < Date.now()) return null; // expirada
+  return payload;
 }
 
 function requireAdmin_(token) {
   const s = getSession_(token);
   if (!s) throw new Error('Sessão expirada. Faça login novamente.');
-  if (s.role !== 'admin') throw new Error('Ação permitida apenas para administradores.');
+  if (normalizeRole_(s.role) !== 'admin') throw new Error('Ação permitida apenas para administradores.');
   return s;
 }
 
@@ -109,7 +131,7 @@ function login(username, password) {
 }
 
 function logout(token) {
-  if (token) CacheService.getScriptCache().remove('sess_' + token);
+  // Token stateless: nada a limpar no servidor; o cliente apaga o token.
   return { ok: true };
 }
 
