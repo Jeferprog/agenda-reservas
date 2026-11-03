@@ -164,6 +164,34 @@ function diagnosticarUsuarios() {
 }
 
 /**
+ * INSPECIONAR — mostra o início da senha armazenada de um usuário, para
+ * identificar se é texto puro ou um hash. Ajuste USERNAME e rode no editor.
+ */
+function amostraSenha() {
+  const USERNAME = 'Magda'; // <-- ajuste para o usuário que quer inspecionar
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === USERNAME.trim().toLowerCase());
+  if (!u) { Logger.log('Usuário não encontrado: ' + USERNAME); return; }
+  Logger.log('Usuário: ' + u.username + ' | tamanho da senha: ' + u.password.length);
+  Logger.log('Início: ' + u.password.substring(0, 30) + '...');
+}
+
+/**
+ * REDEFINIR SENHA (texto puro) — desbloqueia o login.
+ * Ajuste USERNAME e NOVA_SENHA abaixo e rode no editor (▶). Não precisa implantar.
+ * Depois entre no app com esse usuário/senha; como admin, use o 🔑 para
+ * redefinir a senha dos demais colaboradores.
+ */
+function redefinirSenha() {
+  const USERNAME = 'Magda';          // <-- ajuste
+  const NOVA_SENHA = 'Cresol@2024';  // <-- ajuste (texto puro)
+  const u = readUsers_().find(x => String(x.username).trim().toLowerCase() === USERNAME.trim().toLowerCase());
+  if (!u) throw new Error('Usuário não encontrado: ' + USERNAME);
+  getSheet_().getRange(u.rowIndex, 3).setValue(String(NOVA_SENHA));
+  Logger.log('Senha de ' + u.username + ' redefinida para texto puro. Já pode logar.');
+  return 'OK';
+}
+
+/**
  * Mapa público de cores (username -> color), SEM senhas.
  * Usado pelo calendário (inclusive a visão pública) para exibir a cor
  * atual de cada usuário. Os nomes já aparecem nas reservas do calendário,
