@@ -75,6 +75,7 @@
         .reserva-tag { color:#fff; padding:4px 8px; border-radius:6px; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.18); display:flex; flex-direction:column; gap:1px; }
         .reserva-tag .rt-top { font-size:11px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .reserva-tag .rt-sub { font-size:10px; font-weight:500; line-height:1.2; opacity:.95; word-break:break-word; }
+        .reserva-tag .rt-obs { font-size:10px; font-weight:500; line-height:1.2; opacity:.9; font-style:italic; word-break:break-word; margin-top:1px; }
         .reserva-tag:hover { filter:brightness(1.08); }
 
         /* Listas de administração (geradas pelo JS) */
@@ -226,8 +227,11 @@
 
                     <div id="usuarioWrap" style="display:none;">
                         <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Usuário</label>
-                        <select id="selectUsuario" class="field mb-5"></select>
+                        <select id="selectUsuario" class="field mb-4"></select>
                     </div>
+
+                    <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Observação (opcional)</label>
+                    <input id="obsReserva" type="text" class="field mb-5" placeholder="Ex.: local do treinamento">
 
                     <button id="btnAgendar" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl shadow-md hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined">check_circle</span> Confirmar Reserva
@@ -334,11 +338,13 @@
                 <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Local</label>
                 <select id="editSelectPlace" class="field mb-4"></select>
                 <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Período</label>
-                <select id="editSelectPeriodo" class="field mb-5">
+                <select id="editSelectPeriodo" class="field mb-4">
                     <option value="Dia todo">Dia todo</option>
                     <option value="Manhã">Manhã</option>
                     <option value="Tarde">Tarde</option>
                 </select>
+                <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Observação (opcional)</label>
+                <input id="editObs" type="text" class="field mb-5" placeholder="Ex.: local do treinamento">
                 <div class="flex flex-wrap gap-3">
                     <button id="btnSalvarReserva" class="flex-1 bg-primary text-on-primary font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Salvar</button>
                     <button id="btnExcluirReserva" class="flex-1 bg-error text-white font-bold py-3 rounded-xl active:scale-[0.98] transition-all">Excluir</button>
@@ -444,11 +450,12 @@
         // no mesmo período, inclusive de usuários comuns.
         // Reconhece nomes que começam com "SEDE" (ex.: "SEDE - Cresol Cooperar - Humaitá").
         function localSemLimite(nome) {
-            return /^SEDE(\s|-|$)/.test(String(nome || '').trim().toUpperCase());
+            const s = String(nome || '').trim().toUpperCase();
+            return /^SEDE(\s|-|$)/.test(s) || s.startsWith('EM TREINAMENTO');
         }
 
-        // Monta a etiqueta da reserva em 2 linhas: "Nome | Período" e "Local".
-        function setTagContent(el, nome, periodo, local) {
+        // Monta a etiqueta da reserva em linhas: "Nome | Período", "Local" e (se houver) a observação.
+        function setTagContent(el, nome, periodo, local, obs) {
             const top = document.createElement('span');
             top.className = 'rt-top';
             top.textContent = `${nome} | ${periodo}`;
@@ -458,6 +465,12 @@
             el.innerHTML = '';
             el.appendChild(top);
             el.appendChild(sub);
+            if (obs) {
+                const o = document.createElement('span');
+                o.className = 'rt-obs';
+                o.textContent = '📍 ' + obs;
+                el.appendChild(o);
+            }
         }
 
         // FUNÇÕES DE UI CUSTOMIZADAS
@@ -637,6 +650,7 @@
                     const cor = userColorMap[nome] || r.userColor || stringToColor(nome);
                     const periodo = normalizaPeriodo(r.period);
                     const local = r.placeName || r.local || "---";
+                    const obs = r.obs || '';
 
                     // Adiciona no calendário logado
                     const cell = document.getElementById("cell-" + r.date);
@@ -644,7 +658,7 @@
                         const tag = document.createElement('div');
                         tag.className = "reserva-tag";
                         tag.style.backgroundColor = cor;
-                        setTagContent(tag, nome, periodo, local);
+                        setTagContent(tag, nome, periodo, local, obs);
                         tag.onclick = (e) => {
                             e.stopPropagation(); // Evita selecionar a data ao clicar na reserva
                             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
@@ -663,7 +677,7 @@
                         const tagPub = document.createElement('div');
                         tagPub.className = "reserva-tag";
                         tagPub.style.backgroundColor = cor;
-                        setTagContent(tagPub, nome, periodo, local);
+                        setTagContent(tagPub, nome, periodo, local, obs);
                         cellPub.querySelector('.reserva-container').appendChild(tagPub);
                     }
                 });
@@ -824,6 +838,7 @@
             document.getElementById('editReservaInfo').innerText = `Usuário: ${nome} | Data: ${dataFormatada}`;
             document.getElementById('editSelectPlace').value = r.placeName || r.local || "";
             document.getElementById('editSelectPeriodo').value = normalizaPeriodo(r.period);
+            document.getElementById('editObs').value = r.obs || '';
             document.getElementById('modalEditReservaBg').style.display = "flex";
         }
 
@@ -849,9 +864,10 @@
 
             await db.collection('reservations').doc(reservaEditId).update({
                 placeName: l,
-                period: p
+                period: p,
+                obs: (document.getElementById('editObs').value || '').trim()
             });
-            mirror('mirrorSaveReserva', getToken(), reservaEditId, { date: reservaEditData.date, placeName: l, period: p, userName: reservaEditData.userName, userColor: reservaEditData.userColor });
+            mirror('mirrorSaveReserva', getToken(), reservaEditId, { date: reservaEditData.date, placeName: l, period: p, userName: reservaEditData.userName, userColor: reservaEditData.userColor, obs: (document.getElementById('editObs').value || '').trim() });
             showToast("Reserva atualizada com sucesso!");
             document.getElementById('modalEditReservaBg').style.display = "none";
         };
@@ -883,10 +899,12 @@
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
             if(u.role !== 'admin' && !localSemLimite(l) && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
                 return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
-            const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-            mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor });
+            const obsNova = (document.getElementById('obsReserva').value || '').trim();
+            const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor, obs: obsNova, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor, obs: obsNova });
             showToast("Reserva confirmada com sucesso!");
             dataSelecionada = "";
+            document.getElementById('obsReserva').value = "";
             document.getElementById('labelData').innerText = "Selecione um dia no calendário";
             document.querySelectorAll('#calBody td').forEach(td => td.style.backgroundColor = '');
         };
@@ -935,7 +953,7 @@
                 const places = ps.docs.map(d => ({ id: d.id, name: d.data().name || '' }));
                 const reservas = rs.docs.map(d => { const x = d.data(); return {
                     id: d.id, date: x.date || '', placeName: x.placeName || x.local || '',
-                    period: x.period || '', userName: x.userName || x.username || '', userColor: x.userColor || ''
+                    period: x.period || '', userName: x.userName || x.username || '', userColor: x.userColor || '', obs: x.obs || ''
                 }; });
                 const res = await gasCall('espelharTudo', getToken(), places, reservas);
                 showToast('Planilha sincronizada: ' + ((res && res.locais) || 0) + ' locais e ' + ((res && res.reservas) || 0) + ' reservas.');

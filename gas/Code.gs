@@ -308,7 +308,7 @@ function getTab_(name, header) {
   return sh;
 }
 function locaisSheet_()  { return getTab_('Locais',  ['firestoreId', 'name']); }
-function reservasSheet_() { return getTab_('Reservas', ['firestoreId', 'date', 'placeName', 'period', 'userName', 'userColor']); }
+function reservasSheet_() { return getTab_('Reservas', ['firestoreId', 'date', 'placeName', 'period', 'userName', 'userColor', 'obs']); }
 
 function findRowByKey_(sh, key) {
   const values = sh.getDataRange().getValues();
@@ -339,7 +339,7 @@ function mirrorSaveReserva(token, firestoreId, d) {
   d = d || {};
   const sh = reservasSheet_();
   const data = [String(firestoreId), String(d.date || ''), String(d.placeName || ''),
-                String(d.period || ''), String(d.userName || ''), String(d.userColor || '')];
+                String(d.period || ''), String(d.userName || ''), String(d.userColor || ''), String(d.obs || '')];
   const row = findRowByKey_(sh, firestoreId);
   if (row < 0) sh.appendRow(data); else sh.getRange(row, 1, 1, data.length).setValues([data]);
   return { ok: true };
@@ -369,9 +369,9 @@ function espelharTudo(token, places, reservas) {
   const r = reservasSheet_();
   if (r.getLastRow() > 1) r.getRange(2, 1, r.getLastRow() - 1, r.getLastColumn()).clearContent();
   if (reservas.length) {
-    r.getRange(2, 1, reservas.length, 6).setValues(reservas.map(x => [
+    r.getRange(2, 1, reservas.length, 7).setValues(reservas.map(x => [
       String(x.id), String(x.date || ''), String(x.placeName || ''),
-      String(x.period || ''), String(x.userName || ''), String(x.userColor || '')
+      String(x.period || ''), String(x.userName || ''), String(x.userColor || ''), String(x.obs || '')
     ]));
   }
   return { ok: true, locais: places.length, reservas: reservas.length };
