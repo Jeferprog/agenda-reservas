@@ -440,6 +440,13 @@
             return na === nb;
         }
 
+        // Local sem limite de reservas (exceção): a SEDE aceita várias reservas
+        // no mesmo período, inclusive de usuários comuns.
+        // Reconhece nomes que começam com "SEDE" (ex.: "SEDE - Cresol Cooperar - Humaitá").
+        function localSemLimite(nome) {
+            return /^SEDE(\s|-|$)/.test(String(nome || '').trim().toUpperCase());
+        }
+
         // Monta a etiqueta da reserva em 2 linhas: "Nome | Período" e "Local".
         function setTagContent(el, nome, periodo, local) {
             const top = document.createElement('span');
@@ -834,7 +841,7 @@
 
             const u = JSON.parse(sessionStorage.getItem("loggedUser"));
 
-            if (u.role !== 'admin') {
+            if (u.role !== 'admin' && !localSemLimite(l)) {
                 const q = await db.collection('reservations').where('date','==',reservaEditData.date).where('placeName','==',l).get();
                 const conflito = q.docs.some(d => d.id !== reservaEditId && periodoConflita(p, d.data().period));
                 if(conflito) return showToast("Já existe reserva neste local para esse período (ou o dia todo).", "error");
@@ -874,7 +881,7 @@
             }
 
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
-            if(u.role !== 'admin' && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
+            if(u.role !== 'admin' && !localSemLimite(l) && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
                 return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
             const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
             mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor });
