@@ -218,11 +218,16 @@
                     <select id="selectPlace" class="field mb-4"></select>
 
                     <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Período</label>
-                    <select id="selectPeriodo" class="field mb-5">
+                    <select id="selectPeriodo" class="field mb-4">
                         <option value="Dia todo">Dia todo</option>
                         <option value="Manhã">Manhã</option>
                         <option value="Tarde">Tarde</option>
                     </select>
+
+                    <div id="usuarioWrap" style="display:none;">
+                        <label class="block text-xs font-bold text-on-surface-variant mb-1 uppercase tracking-wide">Usuário</label>
+                        <select id="selectUsuario" class="field mb-5"></select>
+                    </div>
 
                     <button id="btnAgendar" class="w-full bg-primary text-on-primary font-bold py-3 rounded-xl shadow-md hover:bg-primary-dark active:scale-95 transition-all flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined">check_circle</span> Confirmar Reserva
@@ -669,6 +674,41 @@
             }
         }
 
+        // Campo "Usuário" do agendamento (só admin): lista todos e deixa o próprio admin como padrão
+        async function loadSelectUsuario() {
+            const wrap = document.getElementById('usuarioWrap');
+            const sel = document.getElementById('selectUsuario');
+            const u = JSON.parse(sessionStorage.getItem("loggedUser") || "null");
+            if(!u || (u.role || '').toString().trim().toLowerCase() !== 'admin') {
+                if(wrap) wrap.style.display = 'none';
+                return;
+            }
+            if(wrap) wrap.style.display = '';
+            try {
+                const users = await gasCall('listUsers', getToken());
+                sel.innerHTML = '';
+                users.forEach(usr => {
+                    const o = document.createElement('option');
+                    o.value = usr.username; o.textContent = usr.username;
+                    if(usr.username === u.username) o.selected = true;
+                    sel.appendChild(o);
+                });
+                // garante o próprio admin como opção mesmo se a lista falhar/variar
+                if(![...sel.options].some(o => o.value === u.username)) {
+                    const o = document.createElement('option');
+                    o.value = u.username; o.textContent = u.username; o.selected = true;
+                    sel.insertBefore(o, sel.firstChild);
+                }
+            } catch(e) {
+                console.warn('loadSelectUsuario falhou:', e && e.message);
+                // fallback: ao menos o próprio admin
+                sel.innerHTML = '';
+                const o = document.createElement('option');
+                o.value = u.username; o.textContent = u.username; o.selected = true;
+                sel.appendChild(o);
+            }
+        }
+
         // CARREGAR LISTA DE USUÁRIOS (do servidor GAS — somente admin)
         async function loadUsersAdmin() {
             const list = document.getElementById('adminListaUsers');
@@ -825,11 +865,19 @@
             const l = document.getElementById('selectPlace').value;
             if(!dataSelecionada || !l) return showToast("Selecione data e local no calendário!", "warning");
             const novoPeriodo = document.getElementById('selectPeriodo').value;
+
+            // Admin pode agendar para outro usuário (campo Usuário); padrão = ele mesmo
+            let alvoNome = u.username, alvoCor = u.color;
+            if((u.role || '').toString().trim().toLowerCase() === 'admin') {
+                const selU = document.getElementById('selectUsuario');
+                if(selU && selU.value) { alvoNome = selU.value; alvoCor = userColorMap[selU.value] || stringToColor(selU.value); }
+            }
+
             const q = await db.collection('reservations').where('date','==',dataSelecionada).where('placeName','==',l).get();
             if(u.role !== 'admin' && q.docs.some(d => periodoConflita(novoPeriodo, d.data().period)))
                 return showToast("Este local já está reservado neste período (ou o dia todo).", "error");
-            const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
-            mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: u.username, userColor: u.color });
+            const refRes = await db.collection('reservations').add({ date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+            mirror('mirrorSaveReserva', getToken(), refRes.id, { date: dataSelecionada, placeName: l, period: novoPeriodo, userName: alvoNome, userColor: alvoCor });
             showToast("Reserva confirmada com sucesso!");
             dataSelecionada = "";
             document.getElementById('labelData').innerText = "Selecione um dia no calendário";
@@ -855,6 +903,7 @@
                 } else {
                     document.getElementById('btnAdmin').classList.add('hidden');
                 }
+                loadSelectUsuario();
             } else {
                 // Não logado -> Tela Pública
                 document.getElementById('btnGoToLogin').classList.remove('hidden');
