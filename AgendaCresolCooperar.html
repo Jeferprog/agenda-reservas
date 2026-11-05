@@ -440,10 +440,11 @@
             return na === nb;
         }
 
-        // Local sem limite de reservas (exceção): "SEDE" aceita várias reservas
+        // Local sem limite de reservas (exceção): a SEDE aceita várias reservas
         // no mesmo período, inclusive de usuários comuns.
+        // Reconhece nomes que começam com "SEDE" (ex.: "SEDE - Cresol Cooperar - Humaitá").
         function localSemLimite(nome) {
-            return String(nome || '').trim().toUpperCase() === 'SEDE';
+            return /^SEDE(\s|-|$)/.test(String(nome || '').trim().toUpperCase());
         }
 
         // Monta a etiqueta da reserva em 2 linhas: "Nome | Período" e "Local".
